@@ -1,69 +1,146 @@
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel, Field
 from datetime import datetime
 
-from app.database import wallet, holdings, trades
+from app.database import wallet, holdings
 from app.services.market_data import get_live_price
+from app.db import SessionLocal
+from app.models import Holding, Trade, CashLedger
 
 router = APIRouter()
 
-@router.post("/api/v1/orders")
-def place_order(order: dict):
-    symbol = order.get("symbol")
-    side = order.get("side")
-    quantity = order.get("quantity")
 
-    if not symbol or side not in ["BUY", "SELL"] or not quantity or quantity <= 0:
-        raise HTTPException(status_code=400, detail="Invalid order")
+# -----------------------------
+# Schemas
+# -----------------------------
+
+class OrderRequest(BaseModel):
+    symbol: str = Field(..., example="AAPL")
+    side: str = Field(..., example="BUY")
+    quantity: int = Field(..., gt=0, example=5)
+
+
+class OrderResponse(BaseModel):
+    status: str
+    trade: dict
+    balance: float
+
+
+# -----------------------------
+# Order Placement
+# -----------------------------
+
+@router.post("/api/v1/orders", response_model=OrderResponse)
+def place_order(order: OrderRequest):
+    symbol = order.symbol.upper()
+    side = order.side.upper()
+    quantity = order.quantity
+
+    if side not in ("BUY", "SELL"):
+        raise HTTPException(status_code=400, detail="side must be BUY or SELL")
 
     price = get_live_price(symbol)
     if price <= 0:
         raise HTTPException(status_code=400, detail="Price unavailable")
 
-    timestamp = datetime.utcnow().isoformat()
+    db = SessionLocal()
+    timestamp = datetime.utcnow()
+    realized_pnl = 0.0
 
-    if side == "BUY":
-        total_cost = price * quantity
-        if wallet["balance"] < total_cost:
-            raise HTTPException(status_code=400, detail="Insufficient balance")
+    try:
+        # ---------------- BUY ----------------
+        if side == "BUY":
+            total_cost = price * quantity
 
-        wallet["balance"] -= total_cost
+            if wallet["balance"] < total_cost:
+                raise HTTPException(status_code=400, detail="Insufficient balance")
 
-        if symbol in holdings:
-            old_qty = holdings[symbol]["quantity"]
-            old_avg = holdings[symbol]["avgPrice"]
-            new_qty = old_qty + quantity
-            new_avg = ((old_qty * old_avg) + (quantity * price)) / new_qty
-            holdings[symbol]["quantity"] = new_qty
-            holdings[symbol]["avgPrice"] = new_avg
+            wallet["balance"] -= total_cost
+
+            holding = db.query(Holding).filter(Holding.symbol == symbol).first()
+
+            if holding:
+                new_qty = holding.quantity + quantity
+                new_avg = (
+                    (holding.quantity * holding.avg_price)
+                    + (quantity * price)
+                ) / new_qty
+                holding.quantity = new_qty
+                holding.avg_price = new_avg
+            else:
+                holding = Holding(
+                    symbol=symbol,
+                    quantity=quantity,
+                    avg_price=price
+                )
+                db.add(holding)
+
+            db.add(CashLedger(
+                type="TRADE_BUY",
+                symbol=symbol,
+                amount=round(total_cost, 2),
+                balance=round(wallet["balance"], 2),
+                timestamp=timestamp
+            ))
+
+        # ---------------- SELL ----------------
         else:
+            holding = db.query(Holding).filter(Holding.symbol == symbol).first()
+
+            if not holding or holding.quantity < quantity:
+                raise HTTPException(status_code=400, detail="Insufficient holdings")
+
+            realized_pnl = (price - holding.avg_price) * quantity
+            wallet["balance"] += price * quantity
+            holding.quantity -= quantity
+
+            if holding.quantity == 0:
+                db.delete(holding)
+
+            db.add(CashLedger(
+                type="TRADE_SELL",
+                symbol=symbol,
+                amount=round(price * quantity, 2),
+                balance=round(wallet["balance"], 2),
+                timestamp=timestamp
+            ))
+
+        # ---------------- TRADE RECORD ----------------
+        trade_row = Trade(
+            symbol=symbol,
+            side=side,
+            quantity=quantity,
+            price=round(price, 2),
+            realized_pnl=round(realized_pnl, 2),
+            timestamp=timestamp
+        )
+
+        db.add(trade_row)
+        db.commit()
+        db.refresh(trade_row)
+
+        # keep in-memory mirror (for fast reads)
+        if side == "BUY" or holding:
             holdings[symbol] = {
-                "quantity": quantity,
-                "avgPrice": price
+                "quantity": holding.quantity,
+                "avgPrice": holding.avg_price
             }
+        else:
+            holdings.pop(symbol, None)
 
-    if side == "SELL":
-        if symbol not in holdings or holdings[symbol]["quantity"] < quantity:
-            raise HTTPException(status_code=400, detail="Insufficient holdings")
+        return {
+            "status": "EXECUTED",
+            "trade": {
+                "tradeId": trade_row.id,
+                "symbol": trade_row.symbol,
+                "side": trade_row.side,
+                "quantity": trade_row.quantity,
+                "price": trade_row.price,
+                "timestamp": trade_row.timestamp.isoformat(),
+                "realizedPnL": trade_row.realized_pnl
+            },
+            "balance": round(wallet["balance"], 2)
+        }
 
-        wallet["balance"] += price * quantity
-        holdings[symbol]["quantity"] -= quantity
-
-        if holdings[symbol]["quantity"] == 0:
-            del holdings[symbol]
-
-    trade = {
-        "tradeId": len(trades) + 1,
-        "symbol": symbol,
-        "side": side,
-        "quantity": quantity,
-        "price": price,
-        "timestamp": timestamp
-    }
-
-    trades.append(trade)
-
-    return {
-        "status": "EXECUTED",
-        "trade": trade,
-        "balance": wallet["balance"]
-    }
+    finally:
+        db.close()

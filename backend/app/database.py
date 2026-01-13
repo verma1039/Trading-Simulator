@@ -1,3 +1,5 @@
+# backend/app/database.py
+
 # -----------------------------
 # Instruments (market reference)
 # -----------------------------
@@ -47,32 +49,9 @@ instruments = [
     {"symbol": "BRK.B", "exchange": "NYSE", "instrumentType": "EQUITY", "lastTradedPrice": 0},
 ]
 
-
 # -----------------------------
-# Demo trading state (in-memory)
+# Runtime state (hydrated later)
 # -----------------------------
-
-# Virtual cash wallet
-wallet = {
-    "balance": 1_000_000  # demo balance
-}
-
-# Holdings per symbol
-# Example:
-# {
-#   "AAPL": {"quantity": 10, "avgPrice": 150.0}
-# }
+wallet = {"balance": 0.0}
 holdings = {}
-
-# Trade history
-# Each trade:
-# {
-#   "tradeId": int,
-#   "symbol": str,
-#   "side": "BUY" | "SELL",
-#   "quantity": int,
-#   "price": float,
-#   "timestamp": str
-# }
-trades = []
-
+cash_ledger = []

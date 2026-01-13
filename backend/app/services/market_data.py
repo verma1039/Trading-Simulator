@@ -1,22 +1,28 @@
-import os
-import requests
+# backend/app/services/market_data.py
 
-API_KEY = os.getenv("ALPHAVANTAGE_API_KEY")
-BASE_URL = "https://www.alphavantage.co/query"
+import random
+
+# simple in-memory price store
+_prices = {
+    "AAPL": 170.0,
+    "MSFT": 330.0,
+    "GOOGL": 140.0,
+    "AMZN": 155.0,
+    "TSLA": 245.0,
+}
 
 def get_live_price(symbol: str) -> float:
-    if not API_KEY:
+    """
+    Simulated live price.
+    Slight random movement on each call.
+    """
+    symbol = symbol.upper()
+
+    if symbol not in _prices:
         return 0.0
 
-    params = {
-        "function": "GLOBAL_QUOTE",
-        "symbol": symbol,
-        "apikey": API_KEY
-    }
+    # simulate market movement
+    change = random.uniform(-0.5, 0.5)
+    _prices[symbol] = round(_prices[symbol] + change, 2)
 
-    try:
-        response = requests.get(BASE_URL, params=params, timeout=5)
-        data = response.json()
-        return float(data["Global Quote"]["05. price"])
-    except Exception:
-        return 0.0
+    return _prices[symbol]
