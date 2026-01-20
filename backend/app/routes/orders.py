@@ -3,96 +3,90 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 
 from app.database import wallet, holdings
-from app.services.price_cache import get_price
+from app.services.market_data import get_live_price
 from app.db import SessionLocal
 from app.models import Holding, Trade, CashLedger
 
 router = APIRouter()
 
 
-# -----------------------------
-# Schemas
-# -----------------------------
-
 class OrderRequest(BaseModel):
-    symbol: str = Field(..., example="AAPL")
-    side: str = Field(..., example="BUY")
-    quantity: int = Field(..., gt=0, example=5)
+    symbol: str
+    side: str
+    quantity: int = Field(..., gt=0)
+
+
+class TradeResponse(BaseModel):
+    tradeId: int
+    symbol: str
+    side: str
+    quantity: int
+    price: float
+    timestamp: str
+    realizedPnL: float
 
 
 class OrderResponse(BaseModel):
     status: str
-    trade: dict
+    trade: TradeResponse
     balance: float
 
-
-# -----------------------------
-# Order Placement
-# -----------------------------
 
 @router.post("/api/v1/orders", response_model=OrderResponse)
 def place_order(order: OrderRequest):
     symbol = order.symbol.upper()
     side = order.side.upper()
-    quantity = order.quantity
 
     if side not in ("BUY", "SELL"):
-        raise HTTPException(status_code=400, detail="side must be BUY or SELL")
+        raise HTTPException(400, "side must be BUY or SELL")
 
-    price = get_price(symbol)
+    price = get_live_price(symbol)
     if price <= 0:
-        raise HTTPException(status_code=400, detail="Price unavailable")
+        raise HTTPException(400, "Price unavailable")
 
     db = SessionLocal()
     timestamp = datetime.utcnow()
-    realized_pnl = 0.0
+    realized = 0.0
 
     try:
-        # ---------------- BUY ----------------
+        holding = db.query(Holding).filter(Holding.symbol == symbol).first()
+
         if side == "BUY":
-            total_cost = price * quantity
+            cost = price * order.quantity
+            if wallet["balance"] < cost:
+                raise HTTPException(400, "Insufficient balance")
 
-            if wallet["balance"] < total_cost:
-                raise HTTPException(status_code=400, detail="Insufficient balance")
-
-            wallet["balance"] -= total_cost
-
-            holding = db.query(Holding).filter(Holding.symbol == symbol).first()
+            wallet["balance"] -= cost
 
             if holding:
-                new_qty = holding.quantity + quantity
-                new_avg = (
-                    (holding.quantity * holding.avg_price)
-                    + (quantity * price)
-                ) / new_qty
-                holding.quantity = new_qty
-                holding.avg_price = new_avg
+                holding.avg_price = (
+                    (holding.avg_price * holding.quantity + cost)
+                    / (holding.quantity + order.quantity)
+                )
+                holding.quantity += order.quantity
             else:
                 holding = Holding(
                     symbol=symbol,
-                    quantity=quantity,
-                    avg_price=price
+                    quantity=order.quantity,
+                    avg_price=price,
                 )
                 db.add(holding)
 
             db.add(CashLedger(
                 type="TRADE_BUY",
                 symbol=symbol,
-                amount=round(total_cost, 2),
+                amount=round(cost, 2),
                 balance=round(wallet["balance"], 2),
-                timestamp=timestamp
+                timestamp=timestamp,
             ))
 
-        # ---------------- SELL ----------------
         else:
-            holding = db.query(Holding).filter(Holding.symbol == symbol).first()
+            if not holding or holding.quantity < order.quantity:
+                raise HTTPException(400, "Insufficient holdings")
 
-            if not holding or holding.quantity < quantity:
-                raise HTTPException(status_code=400, detail="Insufficient holdings")
-
-            realized_pnl = (price - holding.avg_price) * quantity
-            wallet["balance"] += price * quantity
-            holding.quantity -= quantity
+            realized = (price - holding.avg_price) * order.quantity
+            wallet["balance"] += price * order.quantity
+            holding.quantity -= order.quantity
 
             if holding.quantity == 0:
                 db.delete(holding)
@@ -100,30 +94,28 @@ def place_order(order: OrderRequest):
             db.add(CashLedger(
                 type="TRADE_SELL",
                 symbol=symbol,
-                amount=round(price * quantity, 2),
+                amount=round(price * order.quantity, 2),
                 balance=round(wallet["balance"], 2),
-                timestamp=timestamp
+                timestamp=timestamp,
             ))
 
-        # ---------------- TRADE RECORD ----------------
-        trade_row = Trade(
+        trade = Trade(
             symbol=symbol,
             side=side,
-            quantity=quantity,
+            quantity=order.quantity,
             price=round(price, 2),
-            realized_pnl=round(realized_pnl, 2),
-            timestamp=timestamp
+            realized_pnl=round(realized, 2),
+            timestamp=timestamp,
         )
 
-        db.add(trade_row)
+        db.add(trade)
         db.commit()
-        db.refresh(trade_row)
+        db.refresh(trade)
 
-        # keep in-memory mirror (for fast reads)
-        if side == "BUY" or holding:
+        if holding:
             holdings[symbol] = {
                 "quantity": holding.quantity,
-                "avgPrice": holding.avg_price
+                "avgPrice": holding.avg_price,
             }
         else:
             holdings.pop(symbol, None)
@@ -131,15 +123,15 @@ def place_order(order: OrderRequest):
         return {
             "status": "EXECUTED",
             "trade": {
-                "tradeId": trade_row.id,
-                "symbol": trade_row.symbol,
-                "side": trade_row.side,
-                "quantity": trade_row.quantity,
-                "price": trade_row.price,
-                "timestamp": trade_row.timestamp.isoformat(),
-                "realizedPnL": trade_row.realized_pnl
+                "tradeId": trade.id,
+                "symbol": trade.symbol,
+                "side": trade.side,
+                "quantity": trade.quantity,
+                "price": trade.price,
+                "timestamp": trade.timestamp.isoformat(),
+                "realizedPnL": trade.realized_pnl,
             },
-            "balance": round(wallet["balance"], 2)
+            "balance": round(wallet["balance"], 2),
         }
 
     finally:

@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from app.database import wallet, holdings
-from app.services.price_cache import get_price
+from app.services.market_data import get_live_price
 
 router = APIRouter()
 
@@ -14,7 +14,7 @@ def get_portfolio():
         quantity = position["quantity"]
         avg_price = position["avgPrice"]
 
-        live_price = get_price(symbol)
+        live_price = get_live_price(symbol)
 
         invested_value = avg_price * quantity
         current_value = live_price * quantity

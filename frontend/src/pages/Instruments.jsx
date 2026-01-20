@@ -4,38 +4,54 @@ import useLivePrices from "../hooks/useLivePrices";
 
 export default function Instruments() {
   const [items, setItems] = useState([]);
-  const livePrices = useLivePrices();
+  const prices = useLivePrices(); // always called at top
 
   useEffect(() => {
-    api.get("/instruments?limit=50").then(res => {
-      setItems(res.data.items);
-    });
+    api.get("/instruments?limit=50")
+      .then(res => setItems(res.data.items))
+      .catch(() => setItems([]));
   }, []);
 
   return (
-    <div>
-      <h2>Market Instruments</h2>
+    <div className="card">
+      <h2 className="card-title">📈 Market Watch</h2>
 
-      <table>
-        <thead>
-          <tr>
-            <th>Symbol</th>
-            <th>Exchange</th>
-            <th>Price</th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map(i => (
-            <tr key={i.symbol}>
-              <td>{i.symbol}</td>
-              <td>{i.exchange}</td>
-              <td>
-                {livePrices[i.symbol]?.toFixed(2) ?? "—"}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {items.length === 0 ? (
+        <p className="muted">Loading instruments...</p>
+      ) : (
+        <div className="table-wrapper">
+          <table className="market-table">
+            <thead>
+              <tr>
+                <th>Symbol</th>
+                <th>Exchange</th>
+                <th>Live Price</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map(inst => {
+                const price = prices[inst.symbol];
+
+                return (
+                  <tr key={inst.symbol}>
+                    <td className="symbol">{inst.symbol}</td>
+                    <td className="exchange">{inst.exchange}</td>
+                    <td
+                      className={
+                        price
+                          ? "price price-live"
+                          : "price price-muted"
+                      }
+                    >
+                      {price ? price.toFixed(2) : "—"}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

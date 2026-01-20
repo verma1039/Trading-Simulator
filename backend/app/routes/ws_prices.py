@@ -3,7 +3,6 @@ import asyncio
 
 from app.services.market_data import get_live_price
 from app.database import instruments
-from app.services.portfolio_snapshot import build_portfolio_snapshot
 
 router = APIRouter()
 
@@ -13,32 +12,19 @@ async def price_stream(websocket: WebSocket):
 
     try:
         while True:
-            prices = []
-
-            for inst in instruments:
-                symbol = inst["symbol"]
-                price = get_live_price(symbol)
-
-                prices.append({
-                    "symbol": symbol,
-                    "price": round(price, 2)
-                })
+            prices = [
+                {
+                    "symbol": inst["symbol"],
+                    "price": round(get_live_price(inst["symbol"]), 2)
+                }
+                for inst in instruments
+            ]
 
             await websocket.send_json(prices)
-            await asyncio.sleep(2)  # push every 2 seconds
-
-    except WebSocketDisconnect:
-        pass
-
-@router.websocket("/ws/portfolio")
-async def portfolio_stream(websocket: WebSocket):
-    await websocket.accept()
-
-    try:
-        while True:
-            snapshot = build_portfolio_snapshot()
-            await websocket.send_json(snapshot)
             await asyncio.sleep(2)
+
     except WebSocketDisconnect:
         pass
 
+    except Exception as e:
+        print("Prices WS error:", e)

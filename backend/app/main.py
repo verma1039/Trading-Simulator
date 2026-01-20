@@ -1,12 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import ws_prices
 
 from app.db import engine, SessionLocal
 from app import models
 from app.models import Wallet, Holding
 from app.database import wallet, holdings
-from app.routes import ws_portfolio
 
 from app.routes import (
     instruments,
@@ -15,7 +13,11 @@ from app.routes import (
     portfolio,
     wallet as wallet_routes,
     summary,
+    ws_prices,
+    ws_portfolio,
 )
+
+from app.services.market_data import start_price_engine
 
 # -----------------------------
 # Create DB tables FIRST
@@ -26,6 +28,13 @@ models.Base.metadata.create_all(bind=engine)
 # Initialize FastAPI
 # -----------------------------
 app = FastAPI(title="Trading Simulator API")
+
+# -----------------------------
+# START PRICE ENGINE (CORRECT WAY)
+# -----------------------------
+@app.on_event("startup")
+def startup_event():
+    start_price_engine()
 
 # -----------------------------
 # CORS (Frontend access)

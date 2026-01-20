@@ -1,68 +1,240 @@
-:root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+/* =========================
+   Global Reset & Base
+========================= */
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  background: #0e1117;
+  color: #e6e6e6;
   min-height: 100vh;
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+/* =========================
+   Layout
+========================= */
+
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+  width: 100%;
+}
+
+/* =========================
+   Navbar
+========================= */
+
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: #161b22;
+  border-bottom: 1px solid #30363d;
+  padding: 16px 32px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.navbar h1 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #58a6ff;
+}
+
+.nav-links {
+  display: flex;
+  gap: 16px;
+}
+
+.nav-links a {
+  text-decoration: none;
+  color: #c9d1d9;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.nav-links a:hover {
+  background: #21262d;
+}
+
+.nav-links a.active {
+  background: #30363d;
+  color: #58a6ff;
+}
+
+/* =========================
+   Cards
+========================= */
+
+.card {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+/* =========================
+   Typography
+========================= */
+
+h2 {
+  margin-bottom: 16px;
+  font-size: 18px;
+}
+
+h3 {
+  margin: 16px 0;
+  font-size: 16px;
+}
+
+/* =========================
+   Tables
+========================= */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+}
+
+thead {
+  background: #21262d;
+}
+
+th,
+td {
+  padding: 12px 10px;
+  text-align: left;
+  border-bottom: 1px solid #30363d;
+  font-size: 14px;
+}
+
+th {
+  font-weight: 600;
+  color: #c9d1d9;
+}
+
+tbody tr {
+  transition: background 0.15s ease;
+}
+
+tbody tr:hover {
+  background: #1f2933;
+}
+
+/* =========================
+   Colors (Trading)
+========================= */
+
+.buy {
+  color: #4caf50;
+  font-weight: 600;
+}
+
+.sell {
+  color: #f44336;
+  font-weight: 600;
+}
+
+.balance {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+/* =========================
+   Forms
+========================= */
+
+.order-form {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+input,
+select {
+  background: #0d1117;
+  border: 1px solid #30363d;
+  color: #e6e6e6;
+  padding: 10px;
+  border-radius: 6px;
+  outline: none;
+}
+
+input:focus,
+select:focus {
+  border-color: #58a6ff;
 }
 
 button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
+  padding: 10px 16px;
+  border-radius: 6px;
+  border: none;
   cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+  font-weight: 600;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
+.btn-buy {
+  background: #238636;
+  color: white;
+}
+
+.btn-buy:hover {
+  background: #2ea043;
+}
+
+.btn-sell {
+  background: #da3633;
+  color: white;
+}
+
+.btn-sell:hover {
+  background: #f85149;
+}
+
+/* =========================
+   Messages
+========================= */
+
+.order-result {
+  margin-top: 16px;
+}
+
+.error {
+  color: #f85149;
+  font-weight: 600;
+}
+
+/* =========================
+   Responsive
+========================= */
+
+@media (max-width: 768px) {
+  .navbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
   }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
+
+  .order-form {
+    flex-direction: column;
   }
 }

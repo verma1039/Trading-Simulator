@@ -1,26 +1,28 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-export default function useLivePrices() {
-  const [prices, setPrices] = useState({});
+export default function useLivePortfolio() {
+  const [portfolio, setPortfolio] = useState(null);
+  const wsRef = useRef(null);
 
   useEffect(() => {
-    const ws = new WebSocket("ws://127.0.0.1:8000/ws/prices");
+    if (wsRef.current) return;
 
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      const map = {};
-      data.forEach(p => {
-        map[p.symbol] = p.price;
-      });
-      setPrices(map);
+    const ws = new WebSocket("ws://127.0.0.1:8000/ws/portfolio");
+    wsRef.current = ws;
+
+    ws.onmessage = (e) => {
+      setPortfolio(JSON.parse(e.data));
     };
 
     ws.onerror = () => {
-      console.error("Price WebSocket error");
+      console.warn("Portfolio WS error");
     };
 
-    return () => ws.close();
+    return () => {
+      ws.close();
+      wsRef.current = null;
+    };
   }, []);
 
-  return prices;
+  return portfolio;
 }
