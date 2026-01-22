@@ -15,6 +15,7 @@ from app.routes import (
     summary,
     ws_prices,
     ws_portfolio,
+    reset,
 )
 
 from app.services.market_data import start_price_engine
@@ -88,3 +89,4 @@ app.include_router(wallet_routes.router)
 app.include_router(summary.router)
 app.include_router(ws_prices.router)
 app.include_router(ws_portfolio.router)
+app.include_router(reset.router)

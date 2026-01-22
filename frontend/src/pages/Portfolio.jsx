@@ -89,6 +89,33 @@ export default function Portfolio() {
           </div>
         )}
       </div>
+
+      {/* -------- Reset Section -------- */}
+      <div style={{ marginTop: "2rem", display: "flex", justifyContent: "flex-end" }}>
+        <button
+          className="btn-sell"
+          style={{ padding: "0.8rem 1.5rem", fontSize: "1rem" }}
+          onClick={async () => {
+            if (window.confirm("Are you sure you want to reset your portfolio? This action cannot be undone.")) {
+              try {
+                const res = await fetch("http://localhost:8000/api/v1/reset", {
+                  method: "POST",
+                });
+                if (res.ok) {
+                  window.location.reload();
+                } else {
+                  alert("Failed to reset portfolio");
+                }
+              } catch (err) {
+                console.error(err);
+                alert("Error resetting portfolio");
+              }
+            }
+          }}
+        >
+          ⚠️ Reset Account
+        </button>
+      </div>
     </>
   );
 }

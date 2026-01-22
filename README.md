@@ -1,208 +1,94 @@
-Trading Simulator (Personal Exploration Project)
+# 📈 Trading Simulator: High-Frequency Full-Stack Platform
 
-This project is a personal stock trading simulator built to explore how real-world trading platforms work from a systems and engineering perspective.
+A production-grade trading simulation engine designed to replicate the architecture of modern fintech platforms. This system handles real-time market data streaming, atomic order execution, and live portfolio valuation.
 
-The focus is on:
+---
 
-real-time market data flow
+## 🏗️ System Architecture
+The application is built on a decoupled architecture focusing on low-latency updates and data integrity:
 
-order execution logic
+* **Backend:** FastAPI utilizing a **Multithreaded Price Engine** to poll Yahoo Finance without blocking the main event loop.
+* **Real-time Layer:** State-synced WebSockets for sub-second price and P&L updates.
+* **Persistence:** SQLite via SQLAlchemy for ACID-compliant trade and ledger records.
+* **Frontend:** React (Vite) with custom hooks to manage WebSocket lifecycles and global state.
 
-portfolio accounting
+---
 
-frontend–backend communication using REST and WebSockets
+## 🚀 Key Engineering Challenges Solved
 
-No real money is involved.
+### 1. Real-Time Data Synchronization
+Instead of traditional REST polling, I implemented a **WebSocket-first** approach. 
+* **Challenge:** Keeping the UI in sync with volatile market prices without unnecessary re-renders.
+* **Solution:** Built custom React hooks (`useLivePrices`) that manage a single socket connection, updating only the specific rows in the DOM that changed.
 
-What this project does (current state)
-Real-time price streaming (infrastructure ready)
+### 2. Atomic Order Execution
+* **Challenge:** Preventing "race conditions" where a user buys more stock than their balance allows.
+* **Solution:** Implemented server-side validation logic that wraps Wallet, Holdings, and Ledger updates in a single database transaction to ensure data consistency.
 
-Backend exposes a WebSocket endpoint:
+### 3. Background Price Engine
+To avoid hitting API rate limits and blocking the UI, the backend runs a dedicated background thread that caches NASDAQ equity prices and broadcasts them to all connected clients asynchronously.
 
-ws://localhost:8000/ws/prices
+---
 
+## 🛠️ Tech Stack
 
-Frontend subscribes once and receives live updates
+| Layer | Technologies |
+| :--- | :--- |
+| **Backend** | Python, FastAPI, SQLAlchemy, Uvicorn, WebSockets |
+| **Frontend** | React, Vite, Axios, CSS3 (Custom Modules) |
+| **Data Source** | Yahoo Finance (yfinance) |
+| **Database** | SQLite (Relational) |
 
-Prices update continuously without polling
+---
 
-Market data source is currently placeholder/test-based
+## 🧠 Core Functionality
 
-Real market data integration is planned next
+### 📊 Market & Trading
+* **Live Watchlist:** Real-time price streaming for NASDAQ instruments.
+* **Execution Engine:** Supports Market BUY/SELL with automated average price (LTP) recalculation.
+* **Balance Guard:** Strict real-time checks for sufficient margin and existing holdings before order finalization.
 
-Tradable instruments
+### 💼 Portfolio & Wallet
+* **Dynamic P&L:** Real-time calculation of Unrealized Profit/Loss based on live market spreads.
+* **Financial Ledger:** A persistent record of every cash movement (Deposits, Withdrawals, Trade debits).
 
-Backend maintains a list of tradable stocks (symbol, exchange, type)
+---
 
-Instruments are fetched via REST:
+## 📂 Project Structure
 
-GET /api/v1/instruments
+```text
+trading-simulator/
+├── backend/
+│   ├── app/
+│   │   ├── routes/      # REST & WS Endpoints
+│   │   ├── services/    # Price Engine & Trade Logic
+│   │   └── models.py    # SQLAlchemy Schemas
+│   └── trading_sim.db   # SQLite Persistent Store
+└── frontend/
+    ├── src/
+    │   ├── hooks/       # WebSocket & API logic
+    │   ├── pages/       # Dashboard, Wallet, History
+    │   └── api/         # Axios configurations
+```
 
+---
 
-Frontend displays all available instruments
+## ▶️ How to Run Locally
 
-Virtual order placement
+### 1. Backend Setup
 
-Supports:
-
-BUY orders
-
-SELL orders
-
-Orders are placed via REST:
-
-POST /api/v1/orders
-
-
-Orders execute immediately using the current market price logic
-
-No real funds are used
-
-Trades tracking
-
-Every executed order creates a trade
-
-Trades are stored in backend memory
-
-Trade history is available via:
-
-GET /api/v1/trades
-
-Portfolio state
-
-Backend maintains a virtual portfolio
-
-Tracks holdings per symbol
-
-Portfolio updates automatically after trades
-
-Portfolio data available via:
-
-GET /api/v1/portfolio
-
-Frontend application
-
-Built using React + Vite
-
-Features:
-
-Instrument list
-
-Live price updates
-
-Buy / Sell interface
-
-Portfolio view
-
-Trades history
-
-Uses:
-
-REST APIs for state-changing operations
-
-WebSockets for real-time price updates
-
-What this project is NOT (by design)
-
-Not a real trading platform
-
-No real money involved
-
-No authentication or user accounts
-
-No multi-user support
-
-No order book or matching engine
-
-No persistence (state is in-memory only)
-
-These exclusions are intentional to keep the focus on learning and exploration.
-
-Tech stack
-Backend
-
-Python
-
-FastAPI
-
-Uvicorn
-
-WebSockets
-
-In-memory data storage
-
-Frontend
-
-React
-
-Vite
-
-Axios
-
-Native WebSocket API
-
-Project structure (simplified)
-backend/
- └── app/
-     ├── routes/        # REST & WebSocket endpoints
-     ├── services/      # Market data abstraction
-     ├── database.py    # In-memory state
-     └── main.py
-
-frontend/
- └── src/
-     ├── api/           # REST clients
-     ├── hooks/         # WebSocket logic
-     ├── pages/         # UI screens
-     └── App.jsx
-
-How to run locally
-Backend
+``` bash
 cd backend
 python -m venv venv
-source venv/bin/activate   # Windows: venv\Scripts\Activate.ps1
+# Windows: venv\Scripts\activate | Mac/Linux: source venv/bin/activate
 pip install -r requirements.txt
-uvicorn app.main:app
+uvicorn app.main:app --reload
+```
 
+### 2. Frontend Setup
 
-Backend runs at:
-
-http://localhost:8000
-
-Frontend
+```bash
 cd frontend
 npm install
 npm run dev
-
-
-Frontend runs at:
-
-http://localhost:5173
-
-Planned next steps
-
-Integrate real stock prices (Yahoo Finance)
-
-Add virtual cash balance
-
-Enforce balance checks on BUY / SELL
-
-Portfolio PnL (realised & unrealised)
-
-Persistence using SQLite
-
-Market hours simulation
-
-Motivation
-
-This project is built for personal learning and exploration.
-
-The goal is to understand:
-
-how trading platforms behave
-
-how real-time systems are designed
-
-how prices, orders, trades, and portfolios interact over time
-
-It is intentionally kept simple and extensible.
+```

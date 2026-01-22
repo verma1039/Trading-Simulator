@@ -5,7 +5,7 @@ from datetime import datetime
 from app.database import wallet, holdings
 from app.services.market_data import get_live_price
 from app.db import SessionLocal
-from app.models import Holding, Trade, CashLedger
+from app.models import Holding, Trade, CashLedger, Wallet
 
 router = APIRouter()
 
@@ -57,6 +57,13 @@ def place_order(order: OrderRequest):
                 raise HTTPException(400, "Insufficient balance")
 
             wallet["balance"] -= cost
+            
+            # Persist wallet balance
+            wallet_row = db.query(Wallet).first()
+            if wallet_row:
+                wallet_row.balance = wallet["balance"]
+                db.add(wallet_row)
+
 
             if holding:
                 holding.avg_price = (
@@ -86,6 +93,12 @@ def place_order(order: OrderRequest):
 
             realized = (price - holding.avg_price) * order.quantity
             wallet["balance"] += price * order.quantity
+            
+            # Persist wallet balance
+            wallet_row = db.query(Wallet).first()
+            if wallet_row:
+                wallet_row.balance = wallet["balance"]
+                db.add(wallet_row)
             holding.quantity -= order.quantity
 
             if holding.quantity == 0:
