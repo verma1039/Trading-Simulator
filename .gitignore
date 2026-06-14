@@ -2,9 +2,12 @@
 # Python / Backend
 # --------------------
 backend/venv/
+.venv/
 __pycache__/
 *.pyc
 .env
+.env.*
+backend/.env
 
 # --------------------
 # Node / Frontend
@@ -12,6 +15,10 @@ __pycache__/
 frontend/node_modules/
 frontend/dist/
 frontend/dist-ssr/
+dist/
+build/
+.vite/
+.cache/
 
 # --------------------
 # Logs
@@ -28,8 +35,23 @@ pnpm-debug.log*
 .vscode/
 .idea/
 .DS_Store
+Thumbs.db
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# --------------------
+# Local databases / state
+# --------------------
+*.db
+*.sqlite
+*.sqlite3
+
+# --------------------
+# Test / tool caches
+# --------------------
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

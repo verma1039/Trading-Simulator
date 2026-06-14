@@ -90,6 +90,195 @@ body {
   margin-bottom: 24px;
 }
 
+.market-overview {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.status-card {
+  margin-bottom: 16px;
+}
+
+.dashboard-widget {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.widget-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.widget-header .card-title {
+  margin-bottom: 0;
+}
+
+.eyebrow {
+  color: #8b949e;
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+
+.metric-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.metric-tile {
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 74px;
+  padding: 12px;
+}
+
+.metric-tile-featured {
+  grid-column: 1 / -1;
+  min-height: 82px;
+}
+
+.metric-value {
+  color: #e6e6e6;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 0;
+  border-bottom: 1px solid #30363d;
+}
+
+.status-row:last-of-type {
+  border-bottom: none;
+}
+
+.freshness-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  padding: 14px;
+}
+
+.label {
+  color: #8b949e;
+  font-size: 13px;
+}
+
+.status-pill {
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.status-pill.online {
+  background: rgba(46, 160, 67, 0.16);
+  color: #56d364;
+}
+
+.status-pill.offline {
+  background: rgba(248, 81, 73, 0.16);
+  color: #f85149;
+}
+
+.status-pill.closed {
+  background: rgba(210, 153, 34, 0.16);
+  color: #d29922;
+}
+
+.status-pill.live {
+  background: rgba(46, 160, 67, 0.16);
+  color: #56d364;
+}
+
+.status-pill.delayed {
+  background: rgba(210, 153, 34, 0.16);
+  color: #d29922;
+}
+
+.status-pill.stale {
+  background: rgba(251, 133, 0, 0.16);
+  color: #fb8500;
+}
+
+.freshness-pill {
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 14px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.freshness-pill.live {
+  background: rgba(46, 160, 67, 0.2);
+  color: #56d364;
+}
+
+.freshness-pill.delayed {
+  background: rgba(210, 153, 34, 0.2);
+  color: #d29922;
+}
+
+.freshness-pill.stale {
+  background: rgba(251, 133, 0, 0.2);
+  color: #fb8500;
+}
+
+.freshness-pill.offline {
+  background: rgba(248, 81, 73, 0.18);
+  color: #f85149;
+}
+
+.market-state-chip {
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.market-state-chip.open {
+  background: rgba(46, 160, 67, 0.2);
+  color: #56d364;
+}
+
+.market-state-chip.closed {
+  background: rgba(210, 153, 34, 0.18);
+  color: #d29922;
+}
+
+.freshness-cell {
+  text-align: left;
+}
+
+.warning-text,
+.order-disabled-message {
+  margin-top: 12px;
+}
+
 /* =========================
    Typography
 ========================= */
@@ -184,6 +373,13 @@ select:focus {
   border-color: #58a6ff;
 }
 
+input:disabled,
+select:disabled,
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 button {
   padding: 10px 16px;
   border-radius: 6px;
@@ -236,5 +432,9 @@ button {
 
   .order-form {
     flex-direction: column;
+  }
+
+  .metric-grid {
+    grid-template-columns: 1fr;
   }
 }

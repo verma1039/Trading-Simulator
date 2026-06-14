@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 
 from app.database import wallet, holdings
-from app.services.market_data import get_live_price
+from app.services.market_data import get_live_price, get_market_status
 from app.db import SessionLocal
 from app.models import Holding, Trade, CashLedger, Wallet
 
@@ -39,6 +39,19 @@ def place_order(order: OrderRequest):
 
     if side not in ("BUY", "SELL"):
         raise HTTPException(400, "side must be BUY or SELL")
+
+    market_status = get_market_status()
+    if market_status["market_status"] == "OFFLINE":
+        raise HTTPException(
+            status_code=503,
+            detail="Live market data unavailable.",
+        )
+
+    if not market_status["market_open"]:
+        raise HTTPException(
+            status_code=403,
+            detail="Market is closed.",
+        )
 
     price = get_live_price(symbol)
     if price <= 0:
@@ -125,7 +138,7 @@ def place_order(order: OrderRequest):
         db.commit()
         db.refresh(trade)
 
-        if holding:
+        if holding and holding.quantity > 0:
             holdings[symbol] = {
                 "quantity": holding.quantity,
                 "avgPrice": holding.avg_price,

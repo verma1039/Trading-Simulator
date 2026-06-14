@@ -1,7 +1,7 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 import asyncio
 
-from app.services.market_data import get_live_price
+from app.services.market_data import get_market_status, get_symbol_market_data
 from app.database import instruments
 
 router = APIRouter()
@@ -13,14 +13,14 @@ async def price_stream(websocket: WebSocket):
     try:
         while True:
             prices = [
-                {
-                    "symbol": inst["symbol"],
-                    "price": round(get_live_price(inst["symbol"]), 2)
-                }
+                get_symbol_market_data(inst["symbol"])
                 for inst in instruments
             ]
 
-            await websocket.send_json(prices)
+            await websocket.send_json({
+                "prices": prices,
+                "market": get_market_status(),
+            })
             await asyncio.sleep(2)
 
     except WebSocketDisconnect:

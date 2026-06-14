@@ -2,11 +2,12 @@ import { useEffect, useRef, useState } from "react";
 
 export default function useLivePrices() {
   const [prices, setPrices] = useState({});
+  const [symbols, setSymbols] = useState({});
+  const [market, setMarket] = useState(null);
   const wsRef = useRef(null);
   const mountedRef = useRef(false);
 
   useEffect(() => {
-    // prevent React 18 strict-mode double connect
     if (mountedRef.current) return;
     mountedRef.current = true;
 
@@ -15,24 +16,27 @@ export default function useLivePrices() {
 
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
+      const rows = Array.isArray(data) ? data : data.prices || [];
       const map = {};
 
-      for (const p of data) {
+      for (const p of rows) {
         map[p.symbol] = p.price;
       }
 
       setPrices(map);
+      setSymbols(Object.fromEntries(rows.map(row => [row.symbol, row])));
+      if (!Array.isArray(data) && data.market) {
+        setMarket(data.market);
+      }
     };
 
     ws.onerror = () => {
       console.warn("Prices WebSocket error");
     };
 
-    // IMPORTANT: do NOT close during strict-mode cleanup
     return () => {};
   }, []);
 
-  // real cleanup only when page unloads
   useEffect(() => {
     return () => {
       if (wsRef.current) {
@@ -42,5 +46,5 @@ export default function useLivePrices() {
     };
   }, []);
 
-  return prices;
+  return { prices, symbols, market };
 }

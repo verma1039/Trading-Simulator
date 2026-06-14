@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 
 from app.database import instruments
-from app.services.market_data import get_live_price
+from app.services.market_data import get_market_status, get_symbol_market_data
 
 router = APIRouter()
 
@@ -13,6 +13,10 @@ class Instrument(BaseModel):
     exchange: str
     instrumentType: str
     lastTradedPrice: float
+    price: float
+    last_updated: Optional[str] = None
+    age_seconds: Optional[int] = None
+    freshness_status: str
 
 
 class InstrumentsResponse(BaseModel):
@@ -40,7 +44,9 @@ def get_instruments(
     result = []
     for i in page_items:
         item = i.copy()
-        item["lastTradedPrice"] = round(get_live_price(item["symbol"]), 2)
+        symbol_data = get_symbol_market_data(item["symbol"])
+        item["lastTradedPrice"] = symbol_data["price"]
+        item.update(symbol_data)
         result.append(item)
 
     return {
@@ -49,3 +55,8 @@ def get_instruments(
         "limit": limit,
         "items": result,
     }
+
+
+@router.get("/api/v1/market/status")
+def market_status():
+    return get_market_status()
