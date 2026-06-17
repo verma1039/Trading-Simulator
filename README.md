@@ -230,6 +230,7 @@ Backend variables:
 | Variable | Required | Description |
 | --- | --- | --- |
 | DATABASE_URL | Production yes, local optional | SQLAlchemy database URL. Local default is sqlite:///./trading_sim.db. Use Postgres in production. |
+| DATABASE_SCHEMA | Production recommended | Postgres schema used by this app. Defaults to trading_simulator for non-SQLite databases. |
 | FRONTEND_ORIGINS | Yes | Comma-separated frontend origins allowed by CORS. |
 | ENVIRONMENT | Optional | development or production marker. |
 | LOG_LEVEL | Optional | Logging level for runtime logs. |
@@ -244,6 +245,7 @@ Frontend variables:
 Example local values:
 
     DATABASE_URL=sqlite:///./trading_sim.db
+    DATABASE_SCHEMA=trading_simulator
     FRONTEND_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
     VITE_API_BASE_URL=http://127.0.0.1:8000/api/v1
     VITE_WS_BASE_URL=ws://127.0.0.1:8000
@@ -251,6 +253,7 @@ Example local values:
 Example production values:
 
     DATABASE_URL=postgresql://user:password@host:5432/database
+    DATABASE_SCHEMA=trading_simulator
     FRONTEND_ORIGINS=https://your-frontend.vercel.app
     VITE_API_BASE_URL=https://your-render-service.onrender.com/api/v1
     VITE_WS_BASE_URL=wss://your-render-service.onrender.com
@@ -316,6 +319,7 @@ Recommended production architecture:
    - Start command: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
 4. Set environment variables:
    - DATABASE_URL
+   - DATABASE_SCHEMA
    - FRONTEND_ORIGINS
    - ENVIRONMENT=production
    - LOG_LEVEL=info
@@ -326,13 +330,18 @@ Recommended production architecture:
 ### Frontend On Vercel
 
 1. Import the repository into Vercel.
-2. Use the Vite configuration from vercel.json.
-3. Set environment variables:
+2. Set the Vercel project Root Directory to frontend.
+3. Use these Vercel build settings:
+   - Framework Preset: Vite
+   - Install Command: npm install
+   - Build Command: npm run build
+   - Output Directory: dist
+4. Set environment variables:
    - VITE_API_BASE_URL=https://your-render-service.onrender.com/api/v1
    - VITE_WS_BASE_URL=wss://your-render-service.onrender.com
-4. Deploy the frontend after the backend URL is known.
-5. Add the final Vercel frontend origin to FRONTEND_ORIGINS on Render.
-6. Redeploy or restart the Render service after changing CORS origins.
+5. Deploy the frontend after the backend URL is known.
+6. Add the final Vercel frontend origin to FRONTEND_ORIGINS on Render.
+7. Redeploy or restart the Render service after changing CORS origins.
 
 ## Deployment Notes
 
