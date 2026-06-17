@@ -1,5 +1,7 @@
 # Trading Simulator
 
+Live Demo: https://real-time-trading-simulator.vercel.app/
+
 Trading Simulator is a full-stack paper trading application with live Yahoo Finance market data, broker-style trading restrictions, portfolio tracking, wallet management, and real-time updates over WebSockets.
 
 The application is split into a FastAPI backend and a React/Vite frontend. The backend owns market data, trading validation, persistence, and WebSocket streams. The frontend renders the market watch, order entry, portfolio, trade history, and wallet workflows.
