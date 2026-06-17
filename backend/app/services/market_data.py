@@ -15,6 +15,7 @@ _fetch_duration_seconds: list[float] = []
 _lock = threading.Lock()
 _engine_started = False
 _last_failure_logged_at: datetime | None = None
+_logged_symbol_mappings: set[str] = set()
 
 SYMBOL_LIVE_MAX_AGE_SECONDS = 90
 SYMBOL_DELAYED_MAX_AGE_SECONDS = 180
@@ -32,6 +33,9 @@ YAHOO_SYMBOL_DELAY_SECONDS = 1
 YAHOO_CYCLE_SLEEP_SECONDS = 10
 DEFAULT_FETCH_DURATION_SECONDS = 0.125
 MAX_FETCH_DURATION_SAMPLES = 100
+YAHOO_SYMBOL_OVERRIDES = {
+    "BRK.B": "BRK-B",
+}
 YAHOO_HEADERS = {
     "User-Agent": "Mozilla/5.0 trading-simulator/1.0",
     "Accept": "application/json,text/plain,*/*",
@@ -40,8 +44,39 @@ _session = requests.Session()
 _session.headers.update(YAHOO_HEADERS)
 
 
+def normalize_app_symbol(symbol: str) -> str:
+    return symbol.upper()
+
+
+def get_yahoo_symbol(symbol: str) -> str:
+    normalized = normalize_app_symbol(symbol)
+    return YAHOO_SYMBOL_OVERRIDES.get(normalized, normalized.replace(".", "-"))
+
+
+def _log_symbol_mapping(symbol: str, yahoo_symbol: str) -> None:
+    if symbol == yahoo_symbol:
+        return
+
+    with _lock:
+        if symbol in _logged_symbol_mappings:
+            return
+        _logged_symbol_mappings.add(symbol)
+
+    logger.info(
+        json.dumps(
+            {
+                "event": "market_data_symbol_mapped",
+                "provider": "Yahoo Finance",
+                "symbol": symbol,
+                "provider_symbol": yahoo_symbol,
+            },
+            sort_keys=True,
+        )
+    )
+
+
 def _update_cached_price(symbol: str, price: float) -> None:
-    normalized = symbol.upper()
+    normalized = normalize_app_symbol(symbol)
     rounded = round(price, 2)
     updated_at = datetime.now(timezone.utc)
 
@@ -61,17 +96,23 @@ def _record_fetch_duration(duration_seconds: float) -> None:
             del _fetch_duration_seconds[:-MAX_FETCH_DURATION_SAMPLES]
 
 
-def _log_market_failure(symbol: str, error: Exception | str, attempt: int) -> None:
+def _log_market_failure(
+    symbol: str,
+    yahoo_symbol: str,
+    error: Exception | str,
+    attempt: int,
+) -> None:
     logger.warning(
         json.dumps(
             {
                 "event": "market_data_fetch_failed",
                 "provider": "Yahoo Finance",
                 "symbol": symbol,
+                "provider_symbol": yahoo_symbol,
                 "attempt": attempt,
                 "error_type": type(error).__name__,
                 "error": str(error),
-                "url": YAHOO_CHART_URL.format(symbol=symbol),
+                "url": YAHOO_CHART_URL.format(symbol=yahoo_symbol),
                 "timeout_seconds": YAHOO_TIMEOUT_SECONDS,
             },
             sort_keys=True,
@@ -79,13 +120,14 @@ def _log_market_failure(symbol: str, error: Exception | str, attempt: int) -> No
     )
 
 
-def _log_market_recovered(symbol: str, price: float) -> None:
+def _log_market_recovered(symbol: str, yahoo_symbol: str, price: float) -> None:
     logger.info(
         json.dumps(
             {
                 "event": "market_data_recovered",
                 "provider": "Yahoo Finance",
                 "symbol": symbol,
+                "provider_symbol": yahoo_symbol,
                 "price": round(price, 2),
             },
             sort_keys=True,
@@ -120,8 +162,11 @@ def _fetch_price(symbol: str) -> float | None:
     """
     Fetch the latest real price from Yahoo Finance's chart endpoint.
     """
-    normalized = symbol.upper()
-    url = YAHOO_CHART_URL.format(symbol=normalized)
+    normalized = normalize_app_symbol(symbol)
+    yahoo_symbol = get_yahoo_symbol(normalized)
+    _log_symbol_mapping(normalized, yahoo_symbol)
+
+    url = YAHOO_CHART_URL.format(symbol=yahoo_symbol)
     params = {"range": "1d", "interval": "1m"}
 
     for attempt in range(1, YAHOO_MAX_RETRIES + 1):
@@ -151,11 +196,11 @@ def _fetch_price(symbol: str) -> float | None:
 
         except requests.HTTPError as exc:
             status_code = exc.response.status_code if exc.response is not None else None
-            _log_market_failure(normalized, exc, attempt)
+            _log_market_failure(normalized, yahoo_symbol, exc, attempt)
             if status_code in {401, 403, 404}:
                 return None
         except (requests.RequestException, ValueError, KeyError, TypeError) as exc:
-            _log_market_failure(normalized, exc, attempt)
+            _log_market_failure(normalized, yahoo_symbol, exc, attempt)
 
         if attempt < YAHOO_MAX_RETRIES:
             time.sleep(YAHOO_RETRY_DELAY_SECONDS)
@@ -175,7 +220,7 @@ def _price_updater():
                 was_offline = get_market_status()["market_status"] == "OFFLINE"
                 _update_cached_price(symbol, price)
                 if was_offline:
-                    _log_market_recovered(symbol, price)
+                    _log_market_recovered(symbol, get_yahoo_symbol(symbol), price)
                 successful_fetch = True
 
             if index < len(instruments) - 1:
@@ -211,7 +256,7 @@ def get_live_price(symbol: str) -> float:
     """
     Returns the latest successfully fetched Yahoo price, if available.
     """
-    normalized = symbol.upper()
+    normalized = normalize_app_symbol(symbol)
     with _lock:
         price = _price_cache.get(normalized, 0.0)
 
@@ -267,7 +312,7 @@ def get_market_status() -> dict:
 
 
 def get_symbol_market_data(symbol: str) -> dict:
-    normalized = symbol.upper()
+    normalized = normalize_app_symbol(symbol)
     now = datetime.now(timezone.utc)
     status = get_market_status()
 
