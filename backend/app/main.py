@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
-from app.db import engine, SessionLocal
+from app.db import SessionLocal, initialize_database
 from app import models
 from app.models import Wallet, Holding
 from app.database import wallet, holdings
@@ -36,7 +36,7 @@ def get_cors_origins():
 # -----------------------------
 # Create DB tables FIRST
 # -----------------------------
-models.Base.metadata.create_all(bind=engine)
+initialize_database()
 
 # -----------------------------
 # Initialize FastAPI
