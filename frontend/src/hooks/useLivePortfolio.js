@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { WS_BASE_URL } from "../config";
 
 export default function useLivePortfolio() {
   const [portfolio, setPortfolio] = useState(null);
@@ -7,7 +8,7 @@ export default function useLivePortfolio() {
   useEffect(() => {
     if (wsRef.current) return;
 
-    const ws = new WebSocket("ws://127.0.0.1:8000/ws/portfolio");
+    const ws = new WebSocket(WS_BASE_URL + "/ws/portfolio");
     wsRef.current = ws;
 
     ws.onmessage = (e) => {

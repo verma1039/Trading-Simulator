@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { WS_BASE_URL } from "../config";
 
 export default function useLivePrices() {
   const [prices, setPrices] = useState({});
@@ -11,7 +12,7 @@ export default function useLivePrices() {
     if (mountedRef.current) return;
     mountedRef.current = true;
 
-    const ws = new WebSocket("ws://127.0.0.1:8000/ws/prices");
+    const ws = new WebSocket(WS_BASE_URL + "/ws/prices");
     wsRef.current = ws;
 
     ws.onmessage = (event) => {

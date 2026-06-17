@@ -1,5 +1,8 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
 
 from app.db import engine, SessionLocal
 from app import models
@@ -19,6 +22,16 @@ from app.routes import (
 )
 
 from app.services.market_data import start_price_engine
+
+load_dotenv()
+
+
+def get_cors_origins():
+    return [
+        origin.strip()
+        for origin in os.getenv("FRONTEND_ORIGINS", "").split(",")
+        if origin.strip()
+    ]
 
 # -----------------------------
 # Create DB tables FIRST
@@ -42,10 +55,7 @@ def startup_event():
 # -----------------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=get_cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
