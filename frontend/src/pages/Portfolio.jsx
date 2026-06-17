@@ -1,5 +1,5 @@
 import useLivePortfolio from "../hooks/useLivePortfolio";
-import { API_BASE_URL } from "../config";
+import api from "../api/axios";
 
 export default function Portfolio() {
   const portfolio = useLivePortfolio();
@@ -99,14 +99,8 @@ export default function Portfolio() {
           onClick={async () => {
             if (window.confirm("Are you sure you want to reset your portfolio? This action cannot be undone.")) {
               try {
-                const res = await fetch(API_BASE_URL + "/reset", {
-                  method: "POST",
-                });
-                if (res.ok) {
-                  window.location.reload();
-                } else {
-                  alert("Failed to reset portfolio");
-                }
+                await api.post("/reset");
+                window.location.reload();
               } catch (err) {
                 console.error(err);
                 alert("Error resetting portfolio");

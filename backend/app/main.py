@@ -4,12 +4,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
-from app.db import SessionLocal, initialize_database
-from app import models
-from app.models import Wallet, Holding
-from app.database import wallet, holdings
-
 from app.routes import (
+    admin,
+    auth,
     instruments,
     orders,
     trades,
@@ -33,10 +30,26 @@ def get_cors_origins():
         if origin.strip()
     ]
 
-# -----------------------------
-# Create DB tables FIRST
-# -----------------------------
-initialize_database()
+
+def is_dev_schema_create_enabled():
+    environment = os.getenv("ENVIRONMENT", "").lower()
+    enabled = os.getenv("ENABLE_DEV_SCHEMA_CREATE", "").lower()
+    return environment == "development" and enabled in {"1", "true", "yes", "on"}
+
+
+def initialize_development_database():
+    if not is_dev_schema_create_enabled():
+        return
+
+    from app.db import initialize_database
+
+    # Legacy SQLAlchemy table creation is explicit local-development only.
+    from app import models  # noqa: F401
+
+    initialize_database()
+
+
+initialize_development_database()
 
 # -----------------------------
 # Initialize FastAPI
@@ -62,36 +75,11 @@ app.add_middleware(
 )
 
 # -----------------------------
-# Initialize DB session
-# -----------------------------
-db = SessionLocal()
-
-# -----------------------------
-# Initialize persistent wallet
-# -----------------------------
-wallet_row = db.query(Wallet).first()
-if not wallet_row:
-    wallet_row = Wallet(balance=1_000_000.0)
-    db.add(wallet_row)
-    db.commit()
-    db.refresh(wallet_row)
-
-wallet["balance"] = wallet_row.balance
-
-# -----------------------------
-# Load holdings from DB
-# -----------------------------
-db_holdings = db.query(Holding).all()
-for h in db_holdings:
-    holdings[h.symbol] = {
-        "quantity": h.quantity,
-        "avgPrice": h.avg_price
-    }
-
-# -----------------------------
 # Register routes
 # -----------------------------
 app.include_router(instruments.router)
+app.include_router(auth.router)
+app.include_router(admin.router)
 app.include_router(orders.router)
 app.include_router(trades.router)
 app.include_router(portfolio.router)

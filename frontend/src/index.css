@@ -60,22 +60,35 @@ body {
   gap: 16px;
 }
 
-.nav-links a {
+.nav-links a,
+.nav-links button {
+  background: transparent;
+  border: 0;
   text-decoration: none;
   color: #c9d1d9;
+  cursor: pointer;
+  font: inherit;
   font-weight: 500;
   padding: 6px 12px;
   border-radius: 6px;
   transition: all 0.2s ease;
 }
 
-.nav-links a:hover {
+.nav-links a:hover,
+.nav-links button:hover {
   background: #21262d;
 }
 
 .nav-links a.active {
   background: #30363d;
   color: #58a6ff;
+}
+
+.nav-link.admin-link-button {
+  background: #21262d;
+  color: #c9d1d9;
+  display: inline-flex;
+  text-decoration: none;
 }
 
 /* =========================
@@ -293,6 +306,22 @@ h3 {
   font-size: 16px;
 }
 
+.muted {
+  color: #8b949e;
+}
+
+.value {
+  color: #e6e6e6;
+  font-size: 20px;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+.symbol {
+  color: #58a6ff;
+  font-weight: 700;
+}
+
 /* =========================
    Tables
 ========================= */
@@ -326,6 +355,14 @@ tbody tr {
 
 tbody tr:hover {
   background: #1f2933;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+}
+
+.market-table {
+  min-width: 100%;
 }
 
 /* =========================
@@ -407,6 +444,50 @@ button {
 }
 
 /* =========================
+   Admin
+========================= */
+
+.admin-header {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.admin-summary-grid,
+.summary-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.admin-toolbar {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.admin-toolbar input {
+  min-width: min(420px, 100%);
+}
+
+.admin-pagination,
+.admin-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.admin-pagination {
+  justify-content: flex-end;
+}
+
+/* =========================
    Messages
 ========================= */
 
@@ -416,6 +497,11 @@ button {
 
 .error {
   color: #f85149;
+  font-weight: 600;
+}
+
+.success {
+  color: #56d364;
   font-weight: 600;
 }
 

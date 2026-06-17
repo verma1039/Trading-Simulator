@@ -49,9 +49,3 @@ instruments = [
     {"symbol": "BRK.B", "exchange": "NYSE", "instrumentType": "EQUITY", "lastTradedPrice": 0},
 ]
 
-# -----------------------------
-# Runtime state (hydrated later)
-# -----------------------------
-wallet = {"balance": 0.0}
-holdings = {}
-cash_ledger = []

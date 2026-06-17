@@ -17,7 +17,7 @@ The application is split into a FastAPI backend and a React/Vite frontend. The b
 - Real-time portfolio valuation stream over /ws/portfolio.
 - Wallet deposits, withdrawals, ledger entries, and balance tracking.
 - Persistent trades, holdings, wallet, and ledger state through SQLAlchemy.
-- Deployment-ready environment configuration for Render backend and Vercel frontend.
+- Deployment-ready environment configuration for Railway backend, Vercel frontend, and Supabase.
 
 ## Architecture
 
@@ -52,7 +52,7 @@ The backend starts a background price engine when FastAPI starts. That engine fe
 | Frontend | React, Vite, Axios |
 | Styling | Project-local CSS design system |
 | Frontend deployment | Vercel |
-| Backend deployment | Render web service |
+| Backend deployment | Railway web service |
 
 ## Project Structure
 
@@ -61,12 +61,11 @@ The backend starts a background price engine when FastAPI starts. That engine fe
         app/
           main.py                  FastAPI app setup, CORS, routes, startup hooks
           db.py                    SQLAlchemy engine/session configuration
-          database.py              In-memory runtime state mirrors
+          database.py              Static instrument seed data
           models.py                SQLAlchemy models
           routes/                  REST and WebSocket endpoints
           services/
             market_data.py         Yahoo fetcher, cache, freshness, market-hours logic
-            portfolio_snapshot.py  Portfolio valuation helper
             price_cache.py         Price lookup compatibility helper
         requirements.txt
       frontend/
@@ -76,7 +75,7 @@ The backend starts a background price engine when FastAPI starts. That engine fe
           pages/                   Market, orders, portfolio, trades, wallet
           config.js                Frontend API and WebSocket URL configuration
         package.json
-      render.yaml
+      railway.json
       vercel.json
       .env.example
 
@@ -232,9 +231,16 @@ Backend variables:
 | Variable | Required | Description |
 | --- | --- | --- |
 | DATABASE_URL | Production yes, local optional | SQLAlchemy database URL. Local default is sqlite:///./trading_sim.db. Use Postgres in production. |
-| DATABASE_SCHEMA | Production recommended | Postgres schema used by this app. Defaults to trading_simulator for non-SQLite databases. |
+| DATABASE_SCHEMA | Optional | Legacy local-development schema name. Supabase business tables are managed by SQL migrations. |
 | FRONTEND_ORIGINS | Yes | Comma-separated frontend origins allowed by CORS. |
-| ENVIRONMENT | Optional | development or production marker. |
+| SUPABASE_URL | Yes | Supabase project URL. |
+| SUPABASE_JWT_ISSUER | Yes | Supabase JWT issuer, usually https://PROJECT_REF.supabase.co/auth/v1. |
+| SUPABASE_JWKS_URL | Yes | Supabase JWKS URL used to validate access tokens. |
+| SUPABASE_JWT_AUDIENCE | Yes | Supabase JWT audience. Defaults to authenticated. |
+| SUPABASE_JWT_SECRET | Optional | Legacy fallback only. Prefer JWKS and never expose this to the frontend. |
+| INITIAL_USER_BALANCE | Yes | Initial wallet balance for new users. |
+| ENVIRONMENT | Yes | development, staging, or production marker. |
+| ENABLE_DEV_SCHEMA_CREATE | Local only | Explicit opt-in for legacy local SQLAlchemy table creation. Keep unset or false in staging/production. |
 | LOG_LEVEL | Optional | Logging level for runtime logs. |
 
 Frontend variables:
@@ -243,22 +249,41 @@ Frontend variables:
 | --- | --- | --- |
 | VITE_API_BASE_URL | Yes in production | Backend REST base URL, including /api/v1. |
 | VITE_WS_BASE_URL | Yes in production | Backend WebSocket base URL using wss in production. |
+| VITE_SUPABASE_URL | Yes | Supabase project URL exposed to the browser. |
+| VITE_SUPABASE_PUBLISHABLE_KEY | Yes | Supabase publishable/anon key exposed to the browser. |
 
 Example local values:
 
     DATABASE_URL=sqlite:///./trading_sim.db
     DATABASE_SCHEMA=trading_simulator
+    ENVIRONMENT=development
+    ENABLE_DEV_SCHEMA_CREATE=true
     FRONTEND_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+    SUPABASE_URL=https://your-project-ref.supabase.co
+    SUPABASE_JWT_ISSUER=https://your-project-ref.supabase.co/auth/v1
+    SUPABASE_JWKS_URL=https://your-project-ref.supabase.co/auth/v1/.well-known/jwks.json
+    SUPABASE_JWT_AUDIENCE=authenticated
+    INITIAL_USER_BALANCE=100000
     VITE_API_BASE_URL=http://127.0.0.1:8000/api/v1
     VITE_WS_BASE_URL=ws://127.0.0.1:8000
+    VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+    VITE_SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-key
 
 Example production values:
 
-    DATABASE_URL=postgresql://user:password@host:5432/database
-    DATABASE_SCHEMA=trading_simulator
+    DATABASE_URL=postgresql://postgres.PROJECT_REF:PASSWORD@REGION.pooler.supabase.com:5432/postgres
+    ENVIRONMENT=production
+    ENABLE_DEV_SCHEMA_CREATE=false
     FRONTEND_ORIGINS=https://your-frontend.vercel.app
-    VITE_API_BASE_URL=https://your-render-service.onrender.com/api/v1
-    VITE_WS_BASE_URL=wss://your-render-service.onrender.com
+    SUPABASE_URL=https://your-project-ref.supabase.co
+    SUPABASE_JWT_ISSUER=https://your-project-ref.supabase.co/auth/v1
+    SUPABASE_JWKS_URL=https://your-project-ref.supabase.co/auth/v1/.well-known/jwks.json
+    SUPABASE_JWT_AUDIENCE=authenticated
+    INITIAL_USER_BALANCE=100000
+    VITE_API_BASE_URL=https://your-railway-service.up.railway.app/api/v1
+    VITE_WS_BASE_URL=wss://your-railway-service.up.railway.app
+    VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+    VITE_SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-key
 
 ## Local Setup
 
@@ -309,23 +334,28 @@ Backend startup:
 Recommended production architecture:
 
 - Frontend: Vercel static Vite deployment.
-- Backend: Render long-running FastAPI web service.
-- Database: Render Postgres or another managed Postgres database.
+- Backend: Railway long-running FastAPI web service.
+- Database: Supabase Postgres with Supabase Auth.
 
-### Backend On Render
+### Backend On Railway
 
-1. Create a Render Web Service connected to this repository.
+1. Create a Railway service connected to this repository.
 2. Use the repository root as the service root.
-3. Use render.yaml or configure:
+3. Use railway.json or configure:
    - Build command: cd backend && pip install -r requirements.txt
    - Start command: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
 4. Set environment variables:
    - DATABASE_URL
-   - DATABASE_SCHEMA
    - FRONTEND_ORIGINS
+   - SUPABASE_URL
+   - SUPABASE_JWT_ISSUER
+   - SUPABASE_JWKS_URL
+   - SUPABASE_JWT_AUDIENCE=authenticated
+   - INITIAL_USER_BALANCE
    - ENVIRONMENT=production
+   - ENABLE_DEV_SCHEMA_CREATE=false
    - LOG_LEVEL=info
-5. Use a paid persistent instance for production uptime; free instances can sleep and disconnect WebSockets.
+5. Use a persistent Railway deployment suitable for WebSockets and the backend price engine.
 6. Deploy the backend first.
 7. Confirm /api/v1/market/status responds.
 
@@ -339,11 +369,13 @@ Recommended production architecture:
    - Build Command: npm run build
    - Output Directory: dist
 4. Set environment variables:
-   - VITE_API_BASE_URL=https://your-render-service.onrender.com/api/v1
-   - VITE_WS_BASE_URL=wss://your-render-service.onrender.com
+   - VITE_SUPABASE_URL
+   - VITE_SUPABASE_PUBLISHABLE_KEY
+   - VITE_API_BASE_URL=https://your-railway-service.up.railway.app/api/v1
+   - VITE_WS_BASE_URL=wss://your-railway-service.up.railway.app
 5. Deploy the frontend after the backend URL is known.
-6. Add the final Vercel frontend origin to FRONTEND_ORIGINS on Render.
-7. Redeploy or restart the Render service after changing CORS origins.
+6. Add the final Vercel frontend origin to FRONTEND_ORIGINS on Railway.
+7. Redeploy or restart the Railway service after changing CORS origins.
 
 ## Deployment Notes
 
