@@ -340,10 +340,10 @@ Recommended production architecture:
 ### Backend On Railway
 
 1. Create a Railway service connected to this repository.
-2. Use the repository root as the service root.
+2. Use `backend` as the service root.
 3. Use railway.json or configure:
-   - Build command: cd backend && pip install -r requirements.txt
-   - Start command: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+   - Build command: pip install -r requirements.txt
+   - Start command: uvicorn app.main:app --host 0.0.0.0 --port $PORT
 4. Set environment variables:
    - DATABASE_URL
    - FRONTEND_ORIGINS
