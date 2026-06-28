@@ -21,8 +21,8 @@ class SupabaseAuthVerifier:
                 token,
                 signing_key.key,
                 algorithms=["RS256", "ES256"],
+                audience=self.settings.supabase_jwt_audience,
                 issuer=self.settings.supabase_jwt_issuer,
-                options={"verify_aud": False},
             )
         except (InvalidTokenError, PyJWKClientError) as exc:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authentication token.") from exc

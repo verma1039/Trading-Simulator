@@ -35,9 +35,9 @@ trading-simulator/
       styles/
     package.json
     vite.config.js
-  DEPLOYMENT_ENVIRONMENT_GUIDE.md
-  DATABASE_MIGRATION_RUNBOOK.md
-  RELEASE_READINESS_CHECKLIST.md
+  .env.example
+  .env.staging.example
+  .env.production.example
 ~~~
 
 ## Local Startup
@@ -77,6 +77,7 @@ Required local values:
 ~~~env
 SUPABASE_URL=
 SUPABASE_ANON_KEY=
+SUPABASE_JWT_AUDIENCE=authenticated
 SUPABASE_DB_URL=
 ADMIN_EMAIL=
 JOINING_BONUS_AMOUNT=10000
@@ -93,6 +94,7 @@ backend/migrations/supabase/005_profile_completion.up.sql
 backend/migrations/supabase/006_profile_hardening.up.sql
 backend/migrations/supabase/007_production_index_audit.up.sql
 backend/migrations/supabase/008_signup_profile_unification.up.sql
+backend/migrations/supabase/009_restore_holdings_uniqueness.up.sql
 ~~~
 
 ### 4. Start Backend
@@ -118,6 +120,12 @@ python run.py
 ~~~
 
 The runner checks the configured port before starting and prints a clear message if the port is already in use.
+
+Production backend startup:
+
+~~~bash
+python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT
+~~~
 
 ### 5. Start Frontend
 
@@ -168,7 +176,7 @@ If API requests return `Database operation failed.`, verify:
 
 - `SUPABASE_DB_URL` is a real Supabase PostgreSQL connection string.
 - the database password is correct.
-- migrations `004` through `008` have been applied.
+- migrations `004` through `009` have been applied.
 - the Supabase database is reachable from your machine.
 
 ### Yahoo Finance Data Failures

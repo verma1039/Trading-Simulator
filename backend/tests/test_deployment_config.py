@@ -36,10 +36,21 @@ def test_production_rejects_wildcard_cors_origins():
         _settings(cors_origins=["*"])
 
 
+def test_production_rejects_insecure_cors_origins():
+    with pytest.raises(ValidationError):
+        _settings(cors_origins=["http://app.testing.invalid"])
+
+
 def test_development_can_allow_localhost_cors_origins():
     settings = _settings(environment="development", cors_origins=["http://localhost:5173"])
 
     assert settings.cors_origins == ["http://localhost:5173"]
+
+
+def test_supabase_jwt_audience_defaults_to_authenticated():
+    settings = _settings(environment="development")
+
+    assert settings.supabase_jwt_audience == "authenticated"
 
 
 def test_joining_bonus_defaults_to_ten_thousand():

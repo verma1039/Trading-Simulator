@@ -18,6 +18,7 @@ class Settings(BaseModel):
     security_referrer_policy: str = "strict-origin-when-cross-origin"
     security_permissions_policy: str = "camera=(), microphone=(), geolocation=()"
     supabase_anon_key: str
+    supabase_jwt_audience: str = "authenticated"
     supabase_jwks_url: str
     supabase_jwt_issuer: str
     supabase_url: str
@@ -49,7 +50,10 @@ class Settings(BaseModel):
             invalid_origins = [
                 origin
                 for origin in self.cors_origins
-                if origin == "*" or "localhost" in origin or "127.0.0.1" in origin
+                if origin == "*"
+                or "localhost" in origin
+                or "127.0.0.1" in origin
+                or not origin.startswith("https://")
             ]
             if invalid_origins:
                 raise ValueError("Production FRONTEND_ORIGINS must use explicit deployed HTTPS origins only.")
@@ -102,6 +106,7 @@ def get_settings() -> Settings:
         security_referrer_policy=os.getenv("SECURITY_REFERRER_POLICY", "strict-origin-when-cross-origin"),
         security_x_frame_options=os.getenv("SECURITY_X_FRAME_OPTIONS", "DENY"),
         supabase_anon_key=os.getenv("SUPABASE_ANON_KEY", ""),
+        supabase_jwt_audience=os.getenv("SUPABASE_JWT_AUDIENCE", "authenticated"),
         supabase_db_url=os.getenv("SUPABASE_DB_URL", os.getenv("DATABASE_URL", "")),
         supabase_jwks_url=os.getenv("SUPABASE_JWKS_URL", f"{supabase_url}/auth/v1/.well-known/jwks.json" if supabase_url else ""),
         supabase_jwt_issuer=os.getenv("SUPABASE_JWT_ISSUER", f"{supabase_url}/auth/v1" if supabase_url else ""),

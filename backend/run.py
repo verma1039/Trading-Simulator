@@ -8,8 +8,11 @@ import uvicorn
 
 
 def main() -> int:
-    host = os.getenv("BACKEND_HOST", "127.0.0.1")
+    environment = os.getenv("ENVIRONMENT", "development").lower()
+    default_host = "0.0.0.0" if environment == "production" else "127.0.0.1"
+    host = os.getenv("BACKEND_HOST", default_host)
     port = int(os.getenv("BACKEND_PORT", os.getenv("PORT", "8000")))
+    reload_enabled = environment != "production"
 
     if not _port_available(host, port):
         sys.stderr.write(
@@ -24,7 +27,7 @@ def main() -> int:
         )
         return 1
 
-    uvicorn.run("app.main:app", host=host, port=port, reload=True)
+    uvicorn.run("app.main:app", host=host, port=port, reload=reload_enabled)
     return 0
 
 
