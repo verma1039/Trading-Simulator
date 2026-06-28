@@ -1,9 +1,8 @@
 fastapi
+email-validator
+PyJWT[crypto]
+psycopg[binary]
 uvicorn
-requests
-python-dotenv
-sqlalchemy
-websockets
-psycopg2-binary
-PyJWT
-cryptography
+yfinance>=1.1.0
+httpx
+pytest

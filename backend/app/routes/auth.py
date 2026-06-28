@@ -1,18 +1,19 @@
+from __future__ import annotations
+
 from fastapi import APIRouter, Depends
 
-from app.auth.dependencies import get_current_user
-from app.auth.schemas import AuthBootstrapResponse, CurrentUser
+from app.routes.dependencies import current_user
+from app.schemas.common import ApiSuccessResponse, api_success
+from app.repositories.trading_repository import TradingRepository, get_repository
+from app.services.auth_service import AuthService
 
-router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
+
+router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-@router.post("/bootstrap", response_model=AuthBootstrapResponse)
-def bootstrap_auth(
-    current_user: CurrentUser = Depends(get_current_user),
-):
-    return {
-        "status": "AUTH_BOOTSTRAPPED",
-        "user": current_user,
-        "profile_ready": True,
-        "wallet_ready": True,
-    }
+@router.get("/me", response_model=ApiSuccessResponse)
+def me(
+    user: dict = Depends(current_user),
+    repository: TradingRepository = Depends(get_repository),
+) -> dict:
+    return api_success(AuthService(repository).current_user(user))

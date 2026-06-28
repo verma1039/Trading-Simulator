@@ -1,0 +1,3 @@
+-- No-op rollback.
+-- The up migration only promotes complete existing profile rows. Reverting this
+-- safely is not possible without knowing each row's previous completion state.

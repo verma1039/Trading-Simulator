@@ -8,6 +8,8 @@ __pycache__/
 .env
 .env.*
 !.env.example
+!.env.staging.example
+!.env.production.example
 backend/.env
 backend/.env.local
 backend/.env.*

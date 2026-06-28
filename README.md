@@ -1,395 +1,187 @@
 # Trading Simulator
 
-Live Demo: https://real-time-trading-simulator.vercel.app/
+Trading Simulator is a paper-trading application with Supabase Auth, a React/Vite frontend, and a FastAPI backend backed by Supabase PostgreSQL.
 
-Trading Simulator is a full-stack paper trading application with live Yahoo Finance market data, broker-style trading restrictions, portfolio tracking, wallet management, and real-time updates over WebSockets.
+## Current Scope
 
-The application is split into a FastAPI backend and a React/Vite frontend. The backend owns market data, trading validation, persistence, and WebSocket streams. The frontend renders the market watch, order entry, portfolio, trade history, and wallet workflows.
-
-## Features
-
-- Live instrument watchlist backed by Yahoo Finance chart data.
-- Per-symbol price freshness tracking: LIVE, DELAYED, STALE, and OFFLINE.
-- Global Yahoo connectivity status based on successful update activity.
-- US market-hours enforcement using the America/New_York timezone.
-- Backend order rejection when market data is offline or the market is closed.
-- Real-time market price stream over /ws/prices.
-- Real-time portfolio valuation stream over /ws/portfolio.
-- Wallet deposits, withdrawals, ledger entries, and balance tracking.
-- Persistent trades, holdings, wallet, and ledger state through SQLAlchemy.
-- Deployment-ready environment configuration for Railway backend, Vercel frontend, and Supabase.
-
-## Architecture
-
-    Yahoo Finance
-         |
-         v
-    FastAPI market data engine
-         |
-         v
-    In-memory price cache and freshness state
-         |
-         +--> REST APIs
-         |
-         +--> WebSocket broadcasters
-                  |
-                  v
-             React hooks
-                  |
-                  v
-             Market, portfolio, and trading UI
-
-The backend starts a background price engine when FastAPI starts. That engine fetches Yahoo Finance prices, updates an in-memory cache, records timestamps, computes connectivity and freshness, and exposes the results through REST and WebSocket endpoints.
-
-## Technology Stack
-
-| Area | Technology |
-| --- | --- |
-| Backend | Python, FastAPI, Uvicorn |
-| Database | SQLAlchemy, SQLite for local development, Postgres-compatible DATABASE_URL for production |
-| Market data | Yahoo Finance chart API through requests |
-| Real-time transport | FastAPI WebSockets |
-| Frontend | React, Vite, Axios |
-| Styling | Project-local CSS design system |
-| Frontend deployment | Vercel |
-| Backend deployment | Railway web service |
+- Frontend: React, Vite, Tailwind CSS, shadcn/ui conventions, Recharts, and Lucide Icons.
+- Backend: FastAPI routes for JWT-verified auth context, Yahoo Finance-backed market data, portfolio, transactions, orders, and admin actions.
+- Auth: Supabase Auth with email/password.
+- State: profiles, wallets, holdings, orders, transactions, deposit requests, and admin actions persist in Supabase PostgreSQL.
+- Trading mode: simulated paper trading only. No broker integration or real-money order execution is included.
 
 ## Project Structure
 
-    trading-simulator/
-      backend/
-        app/
-          main.py                  FastAPI app setup, CORS, routes, startup hooks
-          db.py                    SQLAlchemy engine/session configuration
-          database.py              Static instrument seed data
-          models.py                SQLAlchemy models
-          routes/                  REST and WebSocket endpoints
-          services/
-            market_data.py         Yahoo fetcher, cache, freshness, market-hours logic
-            price_cache.py         Price lookup compatibility helper
-        requirements.txt
-      frontend/
-        src/
-          api/                     Axios and endpoint helpers
-          hooks/                   WebSocket hooks
-          pages/                   Market, orders, portfolio, trades, wallet
-          config.js                Frontend API and WebSocket URL configuration
-        package.json
-      railway.json
-      vercel.json
-      .env.example
-
-## Market Data Flow
-
-1. backend/app/services/market_data.py tracks the configured symbols and starts the price engine.
-2. The price engine calls Yahoo Finance chart endpoints for each symbol.
-3. Successful responses are parsed into symbol prices and timestamps.
-4. Prices are stored in the backend in-memory market data cache.
-5. The latest successful update time is recorded globally and per symbol.
-6. REST endpoints read the cache for instruments and market status.
-7. /ws/prices emits the same market data contract to connected clients.
-8. React hooks consume the WebSocket payload and update page state.
-9. The UI re-renders prices, badges, connectivity, freshness, and trading controls.
-
-The application does not generate simulated fallback prices. If Yahoo Finance is unavailable, the last successfully fetched real prices remain visible and the connectivity/freshness status moves toward OFFLINE.
+~~~text
+trading-simulator/
+  backend/
+    app/
+      core/
+      repositories/
+      routes/
+      schemas/
+      services/
+      main.py
+    requirements.txt
+  frontend/
+    public/
+      tradingicon.png
+    src/
+      components/
+      layout/
+      pages/
+      router/
+      lib/
+      styles/
+    package.json
+    vite.config.js
+  DEPLOYMENT_ENVIRONMENT_GUIDE.md
+  DATABASE_MIGRATION_RUNBOOK.md
+  RELEASE_READINESS_CHECKLIST.md
+~~~
+
+## Local Startup
+
+### 1. Install Frontend Dependencies
+
+~~~powershell
+cd frontend
+npm install
+~~~
+
+### 2. Install Backend Dependencies
+
+~~~powershell
+cd backend
+python -m pip install -r requirements.txt
+~~~
+
+### 3. Configure Environment
+
+Use the root environment template as the local reference.
+
+Backend environment is loaded from:
+
+~~~text
+backend/.env
+~~~
+
+Frontend environment is loaded from:
 
-## Trading Flow
+~~~text
+frontend/.env
+~~~
 
-1. The user submits a BUY or SELL order from the frontend.
-2. The frontend sends the order to POST /api/v1/orders.
-3. The backend checks market connectivity and market hours.
-4. The backend rejects orders when live data is unavailable or the market is closed.
-5. For BUY orders, the backend checks wallet balance.
-6. For SELL orders, the backend checks current holdings.
-7. Valid orders update trades, holdings, wallet balance, and ledger records.
-8. Portfolio and account summaries reflect the new state.
+Required local values:
 
-Trading is allowed only when:
-
-- market_status is ONLINE
-- market_open is true
-
-## Market Status And Freshness
-
-The backend maintains two related concepts:
+~~~env
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
+SUPABASE_DB_URL=
+ADMIN_EMAIL=
+JOINING_BONUS_AMOUNT=10000
+VITE_SUPABASE_URL=
+VITE_SUPABASE_ANON_KEY=
+VITE_API_BASE_URL=http://127.0.0.1:8000
+~~~
 
-- Connectivity status: global Yahoo Finance update availability.
-- Freshness status: per-symbol age of the last successful symbol update.
-
-Connectivity fields include:
-
-- market_status
-- market_data_available
-- last_successful_update
-- last_global_update
-- seconds_since_last_global_update
-- data_source
+Apply database migrations in order before using protected routes:
+
+~~~text
+backend/migrations/supabase/004_business_persistence.up.sql
+backend/migrations/supabase/005_profile_completion.up.sql
+backend/migrations/supabase/006_profile_hardening.up.sql
+backend/migrations/supabase/007_production_index_audit.up.sql
+backend/migrations/supabase/008_signup_profile_unification.up.sql
+~~~
+
+### 4. Start Backend
+
+~~~powershell
+cd backend
+python -m uvicorn app.main:app --reload
+~~~
+
+Alternative port:
+
+~~~powershell
+cd backend
+python -m uvicorn app.main:app --reload --port 8001
+~~~
+
+Optional local runner with env-based port override:
+
+~~~powershell
+cd backend
+$env:BACKEND_PORT="8001"
+python run.py
+~~~
 
-Per-symbol freshness fields include:
+The runner checks the configured port before starting and prints a clear message if the port is already in use.
 
-- last_updated
-- age_seconds
-- freshness_status
+### 5. Start Frontend
 
-Freshness rules:
+~~~powershell
+cd frontend
+npm run dev
+~~~
 
-| Freshness | Rule |
-| --- | --- |
-| LIVE | Symbol updated within 90 seconds |
-| DELAYED | Symbol updated between 90 and 180 seconds ago |
-| STALE | Symbol updated more than 180 seconds ago |
-| OFFLINE | Global market connectivity is OFFLINE |
-
-Connectivity is computed from actual successful Yahoo update activity and the measured refresh interval instead of a fixed manual toggle.
-
-## Market Hours Logic
-
-The backend evaluates US regular market hours using the America/New_York timezone:
-
-- Market open: 9:30 AM ET
-- Market close: 4:00 PM ET
-- Weekends are closed
-- Daylight saving time is handled by Python timezone rules
-
-Market status payloads expose:
-
-- market_open
-- market_open_time
-- market_close_time
-- next_open_time
+Open:
 
-Holiday handling is not currently implemented. For production brokerage-grade behavior, add an exchange calendar such as NYSE/Nasdaq holidays.
+~~~text
+http://localhost:5173/login
+~~~
 
-## Portfolio Tracking
+## Troubleshooting
 
-Portfolio state combines persisted holdings with the latest available market prices:
+### Port Already In Use
 
-- Holdings are persisted in the database.
-- Average price is recalculated during executions.
-- Current value and unrealized P/L are derived from the latest cached prices.
-- /ws/portfolio streams portfolio snapshots for live UI updates.
-
-## Order Execution
-
-Order execution is handled by the backend only. Frontend validation improves UX, but backend validation is authoritative.
+If backend startup fails because port `8000` is already occupied, start on another port:
 
-The backend enforces:
-
-- Market connectivity must be ONLINE.
-- Market must be OPEN.
-- BUY orders require sufficient wallet balance.
-- SELL orders require sufficient holdings.
-- Cash and holding updates are persisted through SQLAlchemy models.
-
-## Wallet Management
-
-The wallet supports:
-
-- Initial account balance.
-- Deposits.
-- Withdrawals.
-- Ledger records.
-- Trade debits and credits.
-
-Wallet APIs expose current balance and ledger history.
-
-## API Endpoints
-
-Base path: /api/v1
-
-| Method | Endpoint | Purpose |
-| --- | --- | --- |
-| GET | /account/summary | Account balance, holdings, and summary metrics |
-| GET | /instruments | Watchlist instruments with price and freshness data |
-| GET | /market/status | Connectivity, freshness, and market-hours status |
-| POST | /orders | Place BUY or SELL order |
-| GET | /portfolio | Current holdings and valuation |
-| POST | /reset | Reset simulator state |
-| GET | /trades | Trade history |
-| POST | /wallet/deposit | Add wallet funds |
-| POST | /wallet/withdraw | Withdraw wallet funds |
-| GET | /wallet/ledger | Wallet ledger history |
-
-## WebSocket Features
-
-| WebSocket | Purpose |
-| --- | --- |
-| /ws/prices | Streams current instrument prices, per-symbol freshness, and market status |
-| /ws/portfolio | Streams portfolio snapshots and live valuation |
-
-Frontend hooks:
-
-- frontend/src/hooks/useLivePrices.js
-- frontend/src/hooks/useLivePortfolio.js
-
-## Environment Variables
-
-Copy .env.example and set environment-specific values in the deployment platform. Do not commit real .env files.
-
-Backend variables:
-
-| Variable | Required | Description |
-| --- | --- | --- |
-| DATABASE_URL | Production yes, local optional | SQLAlchemy database URL. Local default is sqlite:///./trading_sim.db. Use Postgres in production. |
-| DATABASE_SCHEMA | Optional | Legacy local-development schema name. Supabase business tables are managed by SQL migrations. |
-| FRONTEND_ORIGINS | Yes | Comma-separated frontend origins allowed by CORS. |
-| SUPABASE_URL | Yes | Supabase project URL. |
-| SUPABASE_JWT_ISSUER | Yes | Supabase JWT issuer, usually https://PROJECT_REF.supabase.co/auth/v1. |
-| SUPABASE_JWKS_URL | Yes | Supabase JWKS URL used to validate access tokens. |
-| SUPABASE_JWT_AUDIENCE | Yes | Supabase JWT audience. Defaults to authenticated. |
-| SUPABASE_JWT_SECRET | Optional | Legacy fallback only. Prefer JWKS and never expose this to the frontend. |
-| INITIAL_USER_BALANCE | Yes | Initial wallet balance for new users. |
-| ENVIRONMENT | Yes | development, staging, or production marker. |
-| ENABLE_DEV_SCHEMA_CREATE | Local only | Explicit opt-in for legacy local SQLAlchemy table creation. Keep unset or false in staging/production. |
-| LOG_LEVEL | Optional | Logging level for runtime logs. |
+~~~powershell
+cd backend
+python -m uvicorn app.main:app --reload --port 8001
+~~~
 
-Frontend variables:
+Then update frontend `VITE_API_BASE_URL`:
 
-| Variable | Required | Description |
-| --- | --- | --- |
-| VITE_API_BASE_URL | Yes in production | Backend REST base URL, including /api/v1. |
-| VITE_WS_BASE_URL | Yes in production | Backend WebSocket base URL using wss in production. |
-| VITE_SUPABASE_URL | Yes | Supabase project URL exposed to the browser. |
-| VITE_SUPABASE_PUBLISHABLE_KEY | Yes | Supabase publishable/anon key exposed to the browser. |
-
-Example local values:
-
-    DATABASE_URL=sqlite:///./trading_sim.db
-    DATABASE_SCHEMA=trading_simulator
-    ENVIRONMENT=development
-    ENABLE_DEV_SCHEMA_CREATE=true
-    FRONTEND_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
-    SUPABASE_URL=https://your-project-ref.supabase.co
-    SUPABASE_JWT_ISSUER=https://your-project-ref.supabase.co/auth/v1
-    SUPABASE_JWKS_URL=https://your-project-ref.supabase.co/auth/v1/.well-known/jwks.json
-    SUPABASE_JWT_AUDIENCE=authenticated
-    INITIAL_USER_BALANCE=100000
-    VITE_API_BASE_URL=http://127.0.0.1:8000/api/v1
-    VITE_WS_BASE_URL=ws://127.0.0.1:8000
-    VITE_SUPABASE_URL=https://your-project-ref.supabase.co
-    VITE_SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-key
-
-Example production values:
-
-    DATABASE_URL=postgresql://postgres.PROJECT_REF:PASSWORD@REGION.pooler.supabase.com:5432/postgres
-    ENVIRONMENT=production
-    ENABLE_DEV_SCHEMA_CREATE=false
-    FRONTEND_ORIGINS=https://your-frontend.vercel.app
-    SUPABASE_URL=https://your-project-ref.supabase.co
-    SUPABASE_JWT_ISSUER=https://your-project-ref.supabase.co/auth/v1
-    SUPABASE_JWKS_URL=https://your-project-ref.supabase.co/auth/v1/.well-known/jwks.json
-    SUPABASE_JWT_AUDIENCE=authenticated
-    INITIAL_USER_BALANCE=100000
-    VITE_API_BASE_URL=https://your-railway-service.up.railway.app/api/v1
-    VITE_WS_BASE_URL=wss://your-railway-service.up.railway.app
-    VITE_SUPABASE_URL=https://your-project-ref.supabase.co
-    VITE_SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-key
-
-## Local Setup
-
-Backend:
-
-    cd backend
-    $env:DATABASE_URL="sqlite:///./trading_sim.db"
-    $env:FRONTEND_ORIGINS="http://localhost:5173,http://127.0.0.1:5173"
-    python -m venv venv
-    .\venv\Scripts\activate
-    pip install -r requirements.txt
-    uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
-
-Frontend:
-
-    cd frontend
-    $env:VITE_API_BASE_URL="http://127.0.0.1:8000/api/v1"
-    $env:VITE_WS_BASE_URL="ws://127.0.0.1:8000"
-    npm install
-    npm run dev
-
-Open the Vite development URL and keep the backend running on port 8000.
-
-## Production Build
-
-Frontend:
-
-    cd frontend
-    $env:VITE_API_BASE_URL="http://127.0.0.1:8000/api/v1"
-    $env:VITE_WS_BASE_URL="ws://127.0.0.1:8000"
-    npm install
-    npm run lint
-    npm run build
-
-Backend import check:
-
-    cd backend
-    $env:FRONTEND_ORIGINS="http://localhost:5173,http://127.0.0.1:5173"
-    python -c "import app.main; print('backend import ok')"
-
-Backend startup:
-
-    cd backend
-    uvicorn app.main:app --host 0.0.0.0 --port 8000
-
-## Deployment Guide
-
-Recommended production architecture:
-
-- Frontend: Vercel static Vite deployment.
-- Backend: Railway long-running FastAPI web service.
-- Database: Supabase Postgres with Supabase Auth.
-
-### Backend On Railway
-
-1. Create a Railway service connected to this repository.
-2. Use `backend` as the service root.
-3. Use railway.json or configure:
-   - Build command: pip install -r requirements.txt
-   - Start command: uvicorn app.main:app --host 0.0.0.0 --port $PORT
-4. Set environment variables:
-   - DATABASE_URL
-   - FRONTEND_ORIGINS
-   - SUPABASE_URL
-   - SUPABASE_JWT_ISSUER
-   - SUPABASE_JWKS_URL
-   - SUPABASE_JWT_AUDIENCE=authenticated
-   - INITIAL_USER_BALANCE
-   - ENVIRONMENT=production
-   - ENABLE_DEV_SCHEMA_CREATE=false
-   - LOG_LEVEL=info
-5. Use a persistent Railway deployment suitable for WebSockets and the backend price engine.
-6. Deploy the backend first.
-7. Confirm /api/v1/market/status responds.
-
-### Frontend On Vercel
-
-1. Import the repository into Vercel.
-2. Set the Vercel project Root Directory to frontend.
-3. Use these Vercel build settings:
-   - Framework Preset: Vite
-   - Install Command: npm install
-   - Build Command: npm run build
-   - Output Directory: dist
-4. Set environment variables:
-   - VITE_SUPABASE_URL
-   - VITE_SUPABASE_PUBLISHABLE_KEY
-   - VITE_API_BASE_URL=https://your-railway-service.up.railway.app/api/v1
-   - VITE_WS_BASE_URL=wss://your-railway-service.up.railway.app
-5. Deploy the frontend after the backend URL is known.
-6. Add the final Vercel frontend origin to FRONTEND_ORIGINS on Railway.
-7. Redeploy or restart the Railway service after changing CORS origins.
-
-## Deployment Notes
-
-- This backend must run as a persistent web process because it uses WebSockets, in-memory market cache, and a background Yahoo polling thread.
-- Do not deploy the FastAPI backend as a serverless Vercel function.
-- SQLite is suitable for local development only. Use managed Postgres for production.
-- In-memory market data is refreshed after backend restarts and is not shared across multiple backend instances.
-- Horizontal scaling would require shared cache/pub-sub infrastructure.
-
-## Future Improvements
-
-- Add an exchange holiday calendar for exact NYSE/Nasdaq closures.
-- Move market cache to Redis for multi-instance deployments.
-- Add structured health checks for Yahoo connectivity and scheduler status.
-- Add automated backend tests for order rejection and market-hours boundaries.
-- Add frontend tests for disabled trading states and WebSocket state updates.
-- Add authentication and per-user portfolios if the simulator becomes multi-user.
+~~~env
+VITE_API_BASE_URL=http://127.0.0.1:8001
+~~~
+
+### Supabase Configuration Missing
+
+If startup fails with missing configuration, check `backend/.env` for:
+
+~~~env
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
+SUPABASE_DB_URL=
+ADMIN_EMAIL=
+~~~
+
+The backend intentionally fails fast when required values are missing or still use unconfigured template values.
+
+### Database Connection Failures
+
+If API requests return `Database operation failed.`, verify:
+
+- `SUPABASE_DB_URL` is a real Supabase PostgreSQL connection string.
+- the database password is correct.
+- migrations `004` through `008` have been applied.
+- the Supabase database is reachable from your machine.
+
+### Yahoo Finance Data Failures
+
+If market endpoints fail, retry after a short delay. The backend caches successful Yahoo Finance responses and falls back to cached data when possible.
+
+## Local Login Flow
+
+- Open `http://localhost:5173/login`.
+- User accounts are created through Supabase Auth from `http://localhost:5173/signup` with full name, email, password, mobile number, and date of birth, then redirect to `/login`.
+- If Supabase email confirmation is enabled, confirm the account before logging in.
+- After login, normal users go directly to `/user`; admins go directly to `/admin`.
+- On first user login, the wallet is created and a one-time `$10,000` joining bonus is credited.
+- On first profile creation, authenticated email matching `ADMIN_EMAIL` becomes `ADMIN`; all other authenticated users become `USER`.
+- After profile creation, `profiles.role` is the source of truth.
+- To change an existing admin/user role after creation, update `profiles.role` in Supabase PostgreSQL.
