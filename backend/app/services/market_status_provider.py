@@ -5,6 +5,7 @@ from zoneinfo import ZoneInfo
 
 
 EASTERN_TZ = ZoneInfo("America/New_York")
+IST_TZ = ZoneInfo("Asia/Kolkata")
 MARKET_OPEN = time(hour=9, minute=30)
 MARKET_CLOSE = time(hour=16, minute=0)
 
@@ -41,7 +42,7 @@ class MarketStatusProvider:
             "sessionLabel": _session_label(status["session"]),
             "countdownLabel": countdown_label,
             "countdownValue": _format_countdown(status["countdownSeconds"]),
-            "updatedAt": "Updated " + datetime.now(EASTERN_TZ).strftime("%I:%M %p ET").lstrip("0"),
+            "updatedAt": "Updated " + datetime.now(IST_TZ).strftime("%I:%M %p IST").lstrip("0"),
         }
 
 

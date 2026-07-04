@@ -124,7 +124,7 @@ export default function SettingsPage() {
               <UserRound className="h-4 w-4" aria-hidden="true" />
               Profile Information
             </CardTitle>
-            <CardDescription>Name, mobile number, country, and timezone can be edited. Email and date of birth are locked.</CardDescription>
+            <CardDescription>Name, mobile number, and country can be edited. Timezone is fixed to IST.</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSave}>
@@ -147,12 +147,7 @@ export default function SettingsPage() {
                   onChange={(value) => setForm((current) => ({ ...current, country: value }))}
                   value={form.country}
                 />
-                <EditableField
-                  icon={Globe2}
-                  label="Timezone"
-                  onChange={(value) => setForm((current) => ({ ...current, timezone: value }))}
-                  value={form.timezone}
-                />
+                <Field icon={Globe2} label="Timezone" value={form.timezone || "Asia/Kolkata"} />
               </div>
               {error ? (
                 <p className="mt-4 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-200">{error}</p>
@@ -188,10 +183,13 @@ export default function SettingsPage() {
   );
 }
 
-function Field({ label, value }) {
+function Field({ icon: Icon, label, value }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</span>
+      <span className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {Icon ? <Icon className="h-4 w-4 text-emerald-300" aria-hidden="true" /> : null}
+        {label}
+      </span>
       <Input readOnly value={value || ""} />
     </label>
   );

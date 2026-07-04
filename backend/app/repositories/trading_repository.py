@@ -4,6 +4,7 @@ from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException, status
 from psycopg.errors import UniqueViolation
@@ -14,6 +15,10 @@ from app.core.logger import get_logger
 from app.repositories.database import Database, get_database
 from app.services.market_data import PORTFOLIO_PERIODS, SECTOR_COLORS
 from app.services.market_data_provider import MarketDataProvider, get_market_provider
+
+
+IST_TZ = ZoneInfo("Asia/Kolkata")
+DEFAULT_TIMEZONE = "Asia/Kolkata"
 
 
 def _money(value: Any) -> float:
@@ -28,8 +33,8 @@ def _date(value: Any) -> str:
     if isinstance(value, date) and not isinstance(value, datetime):
         return value.isoformat()
     if isinstance(value, datetime):
-        return value.date().isoformat()
-    return datetime.now(timezone.utc).date().isoformat()
+        return value.astimezone(IST_TZ).date().isoformat()
+    return datetime.now(IST_TZ).date().isoformat()
 
 
 def _optional_date(value: Any) -> str:
@@ -54,16 +59,17 @@ def _parse_optional_date(value: Any) -> date | None:
 def _optional_datetime(value: Any) -> str:
     if not isinstance(value, datetime):
         return ""
-    return value.astimezone(timezone.utc).isoformat()
+    return value.astimezone(IST_TZ).isoformat()
 
 
 def _time_label(value: Any) -> str:
     if not isinstance(value, datetime):
         return "Never"
-    today = datetime.now(timezone.utc).date()
-    if value.date() == today:
-        return value.strftime("%I:%M %p").lstrip("0")
-    return value.strftime("%b %d, %Y")
+    local_value = value.astimezone(IST_TZ)
+    today = datetime.now(IST_TZ).date()
+    if local_value.date() == today:
+        return local_value.strftime("%I:%M %p IST").lstrip("0")
+    return local_value.strftime("%b %d, %Y")
 
 
 def _login_badge(value: Any) -> dict:
@@ -93,7 +99,7 @@ class TradingRepository:
         display_name = auth_user["name"] or email.split("@")[0]
         phone_number = (auth_user.get("phoneNumber") or "").strip() or None
         date_of_birth = _parse_optional_date(auth_user.get("dateOfBirth"))
-        timezone_name = (auth_user.get("timezone") or "Asia/Kolkata").strip() or "Asia/Kolkata"
+        timezone_name = (auth_user.get("timezone") or DEFAULT_TIMEZONE).strip() or DEFAULT_TIMEZONE
         country = (auth_user.get("country") or "India").strip() or "India"
         profile_completed = bool(phone_number and date_of_birth)
 
@@ -115,7 +121,7 @@ class TradingRepository:
                         set email = %s,
                             phone_number = coalesce(phone_number, %s),
                             date_of_birth = coalesce(date_of_birth, %s),
-                            timezone = coalesce(nullif(btrim(timezone), ''), %s, 'Asia/Kolkata'),
+                            timezone = %s,
                             country = coalesce(nullif(btrim(country), ''), %s, 'India'),
                             profile_completed = case
                               when profile_completed then true
@@ -206,7 +212,7 @@ class TradingRepository:
             "role": profile["role"],
             "status": profile["status"],
             "accountId": _uuid(wallet["id"]) if wallet else "",
-            "timezone": profile.get("timezone") or "Asia/Kolkata",
+            "timezone": DEFAULT_TIMEZONE,
             "country": profile.get("country") or "India",
             "lastActive": _time_label(profile.get("last_active_at")),
             "lastLoginAt": _optional_datetime(profile.get("last_login_at")),
@@ -272,7 +278,7 @@ class TradingRepository:
         profile = self.get_profile(user)["profile"]
         return {
             "country": profile["country"],
-            "timezone": profile["timezone"],
+            "timezone": DEFAULT_TIMEZONE,
         }
 
     def update_profile_preferences(self, user: dict, timezone_name: str, country: str) -> dict:
@@ -286,7 +292,7 @@ class TradingRepository:
                 where user_id = %s
                 returning *
                 """,
-                (timezone_name.strip(), country.strip(), user["id"]),
+                (DEFAULT_TIMEZONE, country.strip(), user["id"]),
             ).fetchone()
             if not profile:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found.")
@@ -351,7 +357,7 @@ class TradingRepository:
             else:
                 next_date_of_birth = date_of_birth
 
-            next_timezone = (timezone_name or existing_profile.get("timezone") or "Asia/Kolkata").strip()
+            next_timezone = DEFAULT_TIMEZONE
             next_country = (country or existing_profile.get("country") or "India").strip()
             next_profile_completed = bool(phone_number and next_date_of_birth)
 

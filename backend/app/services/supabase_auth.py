@@ -47,7 +47,7 @@ class SupabaseAuthVerifier:
             "name": name,
             "phoneNumber": metadata.get("phone_number") or metadata.get("phoneNumber") or "",
             "dateOfBirth": metadata.get("date_of_birth") or metadata.get("dateOfBirth") or "",
-            "timezone": metadata.get("timezone") or "Asia/Kolkata",
+            "timezone": "Asia/Kolkata",
             "country": metadata.get("country") or "India",
             "role": role,
         }
